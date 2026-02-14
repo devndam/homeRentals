@@ -364,6 +364,34 @@ export const swaggerDocument = {
       },
 
       // ─── Admin ──────────────────────────────
+      CreateAdminRequest: {
+        type: 'object',
+        required: ['firstName', 'lastName', 'email', 'phone', 'password', 'permissions'],
+        properties: {
+          firstName: { type: 'string', example: 'Emeka' },
+          lastName: { type: 'string', example: 'Eze' },
+          email: { type: 'string', format: 'email', example: 'emeka@rentals.ng' },
+          phone: { type: 'string', example: '+2348033333333' },
+          password: { type: 'string', minLength: 8, example: 'AdminPass@123' },
+          permissions: {
+            type: 'array',
+            items: { type: 'string', enum: ['manage_admins', 'view_users', 'toggle_user_status', 'verify_user', 'view_properties', 'approve_property', 'reject_property', 'suspend_property', 'view_payments', 'process_refund', 'view_agreements', 'view_dashboard', 'manage_disputes'] },
+            example: ['view_dashboard', 'view_users', 'view_properties', 'approve_property'],
+          },
+          isSuperAdmin: { type: 'boolean', default: false },
+        },
+      },
+      UpdateAdminPermissionsRequest: {
+        type: 'object',
+        required: ['permissions'],
+        properties: {
+          permissions: {
+            type: 'array',
+            items: { type: 'string', enum: ['manage_admins', 'view_users', 'toggle_user_status', 'verify_user', 'view_properties', 'approve_property', 'reject_property', 'suspend_property', 'view_payments', 'process_refund', 'view_agreements', 'view_dashboard', 'manage_disputes'] },
+            example: ['view_dashboard', 'view_users', 'view_properties'],
+          },
+        },
+      },
       DashboardStats: {
         type: 'object',
         properties: {
@@ -822,7 +850,86 @@ export const swaggerDocument = {
       },
     },
 
-    // ═══ ADMIN ══════════════════════════════════
+    // ═══ ADMIN — MEMBER MANAGEMENT ═══════════════
+    '/admin/members': {
+      get: {
+        tags: ['Admin'],
+        summary: 'List all admin members',
+        description: 'Requires: manage_admins permission',
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          { name: 'page', in: 'query', schema: { type: 'integer' } },
+          { name: 'limit', in: 'query', schema: { type: 'integer' } },
+          { name: 'search', in: 'query', schema: { type: 'string' } },
+        ],
+        responses: { 200: { description: 'Admin members list' } },
+      },
+      post: {
+        tags: ['Admin'],
+        summary: 'Create a new admin member',
+        description: 'Requires: manage_admins permission',
+        security: [{ BearerAuth: [] }],
+        requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/CreateAdminRequest' } } } },
+        responses: {
+          201: { description: 'Admin member created' },
+          409: { description: 'Email or phone already exists' },
+        },
+      },
+    },
+    '/admin/members/permissions': {
+      get: {
+        tags: ['Admin'],
+        summary: 'List all available permissions with descriptions',
+        description: 'Requires: manage_admins permission',
+        security: [{ BearerAuth: [] }],
+        responses: { 200: { description: 'All available permissions' } },
+      },
+    },
+    '/admin/members/{id}': {
+      get: {
+        tags: ['Admin'],
+        summary: 'Get admin member details',
+        description: 'Requires: manage_admins permission',
+        security: [{ BearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        responses: { 200: { description: 'Admin member details' } },
+      },
+      delete: {
+        tags: ['Admin'],
+        summary: 'Remove an admin member (downgrades to tenant)',
+        description: 'Requires: manage_admins permission. Cannot remove super admins or yourself.',
+        security: [{ BearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        responses: {
+          200: { description: 'Admin member removed' },
+          400: { description: 'Cannot remove self or super admin' },
+        },
+      },
+    },
+    '/admin/members/{id}/permissions': {
+      put: {
+        tags: ['Admin'],
+        summary: 'Update admin member permissions',
+        description: 'Requires: manage_admins permission. Cannot modify super admins.',
+        security: [{ BearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/UpdateAdminPermissionsRequest' } } } },
+        responses: { 200: { description: 'Permissions updated' } },
+      },
+    },
+    '/admin/members/{id}/super-admin': {
+      patch: {
+        tags: ['Admin'],
+        summary: 'Grant or revoke super admin status',
+        description: 'Requires: manage_admins permission',
+        security: [{ BearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['isSuperAdmin'], properties: { isSuperAdmin: { type: 'boolean' } } } } } },
+        responses: { 200: { description: 'Super admin status updated' } },
+      },
+    },
+
+    // ═══ ADMIN — DASHBOARD & OPERATIONS ═════════
     '/admin/dashboard': {
       get: {
         tags: ['Admin'],

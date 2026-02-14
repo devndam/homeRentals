@@ -20,12 +20,14 @@ async function seed() {
       phone: '+2340000000000',
       password: await bcrypt.hash('Admin@123456', 12),
       role: UserRole.ADMIN,
+      isSuperAdmin: true,
+      permissions: [],
       emailVerified: true,
       phoneVerified: true,
       identityVerified: true,
     });
     await userRepo.save(admin);
-    console.log('[Seed] Admin user created: admin@rentals.ng / Admin@123456');
+    console.log('[Seed] Super Admin created: admin@rentals.ng / Admin@123456');
   }
 
   // Create sample landlord

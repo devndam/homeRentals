@@ -2,7 +2,7 @@ import { Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
 import { ApiError } from '../utils/api-error';
-import { AuthenticatedRequest, JwtPayload, UserRole } from '../types';
+import { AuthenticatedRequest, JwtPayload, UserRole, AdminPermission } from '../types';
 
 /**
  * Verifies JWT access token from Authorization header.
@@ -34,6 +34,38 @@ export function authorize(...roles: UserRole[]) {
     if (!roles.includes(req.user.role)) {
       throw ApiError.forbidden('You do not have permission to access this resource');
     }
+    next();
+  };
+}
+
+/**
+ * Requires admin role + specific granular permission(s).
+ * Super admins bypass all permission checks.
+ */
+export function requirePermission(...required: AdminPermission[]) {
+  return (req: AuthenticatedRequest, _res: Response, next: NextFunction) => {
+    if (!req.user) {
+      throw ApiError.unauthorized();
+    }
+
+    if (req.user.role !== UserRole.ADMIN) {
+      throw ApiError.forbidden('Admin access required');
+    }
+
+    // Super admins have all permissions
+    if (req.user.isSuperAdmin) {
+      return next();
+    }
+
+    const userPerms = req.user.permissions || [];
+    const missing = required.filter((p) => !userPerms.includes(p));
+
+    if (missing.length > 0) {
+      throw ApiError.forbidden(
+        `Missing required permission(s): ${missing.join(', ')}`,
+      );
+    }
+
     next();
   };
 }

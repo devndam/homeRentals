@@ -49,7 +49,7 @@ export class AuthService {
   async login(dto: LoginDto) {
     const user = await userRepo().findOne({
       where: { email: dto.email.toLowerCase().trim() },
-      select: ['id', 'email', 'password', 'role', 'firstName', 'lastName', 'phone', 'isActive'],
+      select: ['id', 'email', 'password', 'role', 'firstName', 'lastName', 'phone', 'isActive', 'isSuperAdmin', 'permissions'],
     });
 
     if (!user) {
@@ -190,6 +190,10 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       role: user.role,
+      ...(user.role === UserRole.ADMIN && {
+        permissions: user.permissions || [],
+        isSuperAdmin: user.isSuperAdmin || false,
+      }),
     };
 
     const accessToken = jwt.sign(payload, env.jwt.accessSecret, {

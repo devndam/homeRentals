@@ -2,7 +2,7 @@ import {
   Entity, PrimaryGeneratedColumn, Column, CreateDateColumn,
   UpdateDateColumn, OneToMany, Index,
 } from 'typeorm';
-import { UserRole } from '../../types';
+import { UserRole, AdminPermission } from '../../types';
 import { Property } from '../properties/property.entity';
 import { Booking } from '../bookings/booking.entity';
 import { Agreement } from '../agreements/agreement.entity';
@@ -70,6 +70,16 @@ export class User {
 
   @Column({ default: true })
   isActive!: boolean;
+
+  // ─── Admin permissions ──────────────────────
+  @Column({ default: false })
+  isSuperAdmin!: boolean;
+
+  @Column({ type: 'jsonb', default: [] })
+  permissions!: AdminPermission[];
+
+  @Column({ nullable: true })
+  addedByAdminId?: string;
 
   @Column({ nullable: true })
   passwordResetToken?: string;
