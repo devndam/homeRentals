@@ -97,13 +97,21 @@ export class Property {
   @Column({ type: 'timestamp', nullable: true })
   availableFrom?: Date;
 
+  // ─── Agent Assignment ─────────────────────
+  @Column({ type: 'uuid', nullable: true })
+  agentId?: string;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'agentId' })
+  agent?: User;
+
   // ─── Relations ────────────────────────────
   @Column({ type: 'uuid' })
-  landlordId!: string;
+  ownerId!: string;
 
   @ManyToOne(() => User, (u) => u.properties, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'landlordId' })
-  landlord!: User;
+  @JoinColumn({ name: 'ownerId' })
+  owner!: User;
 
   @OneToMany(() => PropertyImage, (img) => img.property, { cascade: true })
   images!: PropertyImage[];

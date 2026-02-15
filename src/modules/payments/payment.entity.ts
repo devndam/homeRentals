@@ -38,7 +38,7 @@ export class Payment {
   commission!: number;
 
   @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
-  landlordAmount!: number;
+  ownerAmount!: number;
 
   @Column({ default: 'NGN' })
   currency!: string;

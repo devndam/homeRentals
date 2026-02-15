@@ -18,10 +18,16 @@ export class Booking {
   propertyId!: string;
 
   @Column({ type: 'uuid' })
-  landlordId!: string;
+  ownerId!: string;
+
+  @Column({ type: 'uuid', nullable: true })
+  agentId?: string;
 
   @Column({ type: 'timestamp' })
   proposedDate!: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  inspectionDate?: Date;
 
   @Column({ type: 'text', nullable: true })
   message?: string;
@@ -30,7 +36,7 @@ export class Booking {
   status!: BookingStatus;
 
   @Column({ type: 'text', nullable: true })
-  landlordNote?: string;
+  ownerNote?: string;
 
   @Column({ type: 'timestamp', nullable: true })
   alternativeDate?: Date;
@@ -44,8 +50,12 @@ export class Booking {
   property!: Property;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'landlordId' })
-  landlord!: User;
+  @JoinColumn({ name: 'ownerId' })
+  owner!: User;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'agentId' })
+  agent?: User;
 
   @CreateDateColumn()
   createdAt!: Date;

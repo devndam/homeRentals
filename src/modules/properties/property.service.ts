@@ -2,20 +2,22 @@ import { AppDataSource } from '../../config/data-source';
 import { Property } from './property.entity';
 import { PropertyImage } from './property-image.entity';
 import { Favorite } from './favorite.entity';
+import { User } from '../users/user.entity';
 import { ApiError } from '../../utils/api-error';
-import { PaginatedResponse, PropertyStatus } from '../../types';
+import { PaginatedResponse, PropertyStatus, UserRole } from '../../types';
 import { CreatePropertyDto, UpdatePropertyDto, PropertyFilterDto } from './property.dto';
 import { paginate } from '../../utils/pagination';
 
 const propertyRepo = () => AppDataSource.getRepository(Property);
 const imageRepo = () => AppDataSource.getRepository(PropertyImage);
 const favoriteRepo = () => AppDataSource.getRepository(Favorite);
+const userRepo = () => AppDataSource.getRepository(User);
 
 export class PropertyService {
-  async create(landlordId: string, dto: CreatePropertyDto): Promise<Property> {
+  async create(ownerId: string, dto: CreatePropertyDto): Promise<Property> {
     const property = propertyRepo().create({
       ...dto,
-      landlordId,
+      ownerId,
       status: PropertyStatus.PENDING_REVIEW,
     });
     return propertyRepo().save(property);
@@ -55,21 +57,21 @@ export class PropertyService {
   async findById(id: string): Promise<Property> {
     const property = await propertyRepo().findOne({
       where: { id },
-      relations: ['images', 'landlord'],
+      relations: ['images', 'owner', 'agent'],
     });
     if (!property) throw ApiError.notFound('Property not found');
 
-    // Increment view count
     await propertyRepo().increment({ id }, 'viewCount', 1);
 
     return property;
   }
 
-  async findByLandlord(landlordId: string, filters: PropertyFilterDto): Promise<PaginatedResponse<Property>> {
+  async findByOwner(ownerId: string, filters: PropertyFilterDto): Promise<PaginatedResponse<Property>> {
     const qb = propertyRepo()
       .createQueryBuilder('p')
       .leftJoinAndSelect('p.images', 'img')
-      .where('p.landlordId = :landlordId', { landlordId });
+      .leftJoinAndSelect('p.agent', 'agent')
+      .where('p.ownerId = :ownerId', { ownerId });
 
     return paginate(qb, {
       page: filters.page,
@@ -79,25 +81,48 @@ export class PropertyService {
     });
   }
 
-  async update(id: string, landlordId: string, dto: UpdatePropertyDto): Promise<Property> {
-    const property = await propertyRepo().findOne({ where: { id, landlordId } });
+  async update(id: string, ownerId: string, dto: UpdatePropertyDto): Promise<Property> {
+    const property = await propertyRepo().findOne({ where: { id, ownerId } });
     if (!property) throw ApiError.notFound('Property not found');
 
     Object.assign(property, dto);
     return propertyRepo().save(property);
   }
 
-  async delete(id: string, landlordId: string): Promise<void> {
-    const property = await propertyRepo().findOne({ where: { id, landlordId } });
+  async delete(id: string, ownerId: string): Promise<void> {
+    const property = await propertyRepo().findOne({ where: { id, ownerId } });
     if (!property) throw ApiError.notFound('Property not found');
 
     await propertyRepo().remove(property);
   }
 
+  // ─── Agent Assignment ─────────────────────────
+
+  async assignAgent(propertyId: string, ownerId: string, agentId: string): Promise<Property> {
+    const property = await propertyRepo().findOne({ where: { id: propertyId, ownerId } });
+    if (!property) throw ApiError.notFound('Property not found');
+
+    const agent = await userRepo().findOne({
+      where: { id: agentId, role: UserRole.AGENT, addedByOwnerId: ownerId },
+    });
+    if (!agent) throw ApiError.notFound('Agent not found or not your agent');
+
+    property.agentId = agentId;
+    return propertyRepo().save(property);
+  }
+
+  async removeAgent(propertyId: string, ownerId: string): Promise<Property> {
+    const property = await propertyRepo().findOne({ where: { id: propertyId, ownerId } });
+    if (!property) throw ApiError.notFound('Property not found');
+
+    property.agentId = undefined;
+    return propertyRepo().save(property);
+  }
+
   // ─── Images ─────────────────────────────────
 
-  async addImages(propertyId: string, landlordId: string, files: Express.Multer.File[]): Promise<PropertyImage[]> {
-    const property = await propertyRepo().findOne({ where: { id: propertyId, landlordId } });
+  async addImages(propertyId: string, ownerId: string, files: Express.Multer.File[]): Promise<PropertyImage[]> {
+    const property = await propertyRepo().findOne({ where: { id: propertyId, ownerId } });
     if (!property) throw ApiError.notFound('Property not found');
 
     const existingCount = await imageRepo().count({ where: { propertyId } });
@@ -116,12 +141,12 @@ export class PropertyService {
     return imageRepo().save(images);
   }
 
-  async deleteImage(imageId: string, landlordId: string): Promise<void> {
+  async deleteImage(imageId: string, ownerId: string): Promise<void> {
     const image = await imageRepo()
       .createQueryBuilder('img')
       .innerJoin('img.property', 'p')
       .where('img.id = :imageId', { imageId })
-      .andWhere('p.landlordId = :landlordId', { landlordId })
+      .andWhere('p.ownerId = :ownerId', { ownerId })
       .getOne();
 
     if (!image) throw ApiError.notFound('Image not found');

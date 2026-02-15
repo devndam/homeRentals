@@ -16,18 +16,28 @@ export class BookingController {
     return sendPaginated(res, result);
   }
 
-  async getLandlordBookings(req: AuthenticatedRequest, res: Response) {
-    const result = await bookingService.getLandlordBookings(req.user.sub, req.query as any);
+  async getOwnerBookings(req: AuthenticatedRequest, res: Response) {
+    const result = await bookingService.getOwnerBookings(req.user.sub, req.query as any);
+    return sendPaginated(res, result);
+  }
+
+  async getAgentBookings(req: AuthenticatedRequest, res: Response) {
+    const result = await bookingService.getAgentBookings(req.user.sub, req.query as any);
     return sendPaginated(res, result);
   }
 
   async respond(req: AuthenticatedRequest, res: Response) {
-    const booking = await bookingService.respond(req.params.id, req.user.sub, req.body);
+    const booking = await bookingService.respond(req.params.id, req.user.sub, req.user.role, req.body);
     return sendSuccess(res, booking, `Booking ${booking.status}`);
   }
 
+  async assignInspectionDate(req: AuthenticatedRequest, res: Response) {
+    const booking = await bookingService.assignInspectionDate(req.params.id, req.user.sub, req.user.role, req.body);
+    return sendSuccess(res, booking, 'Inspection date assigned');
+  }
+
   async complete(req: AuthenticatedRequest, res: Response) {
-    const booking = await bookingService.complete(req.params.id, req.user.sub, req.body);
+    const booking = await bookingService.complete(req.params.id, req.user.sub, req.user.role, req.body);
     return sendSuccess(res, booking, 'Booking completed');
   }
 

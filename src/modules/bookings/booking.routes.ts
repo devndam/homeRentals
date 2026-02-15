@@ -3,7 +3,7 @@ import { BookingController } from './booking.controller';
 import { authenticate, authorize } from '../../middleware/auth.middleware';
 import { validateBody } from '../../middleware/validate';
 import { asyncHandler } from '../../utils/async-handler';
-import { CreateBookingDto, RespondBookingDto, CompleteBookingDto } from './booking.dto';
+import { CreateBookingDto, RespondBookingDto, CompleteBookingDto, AssignInspectionDateDto } from './booking.dto';
 import { UserRole } from '../../types';
 
 const router = Router();
@@ -16,10 +16,14 @@ router.post('/', authorize(UserRole.TENANT) as any, validateBody(CreateBookingDt
 router.get('/tenant', authorize(UserRole.TENANT) as any, asyncHandler(ctrl.getTenantBookings as any));
 router.patch('/:id/cancel', authorize(UserRole.TENANT) as any, asyncHandler(ctrl.cancel as any));
 
-// Landlord
-router.get('/landlord', authorize(UserRole.LANDLORD) as any, asyncHandler(ctrl.getLandlordBookings as any));
-router.patch('/:id/respond', authorize(UserRole.LANDLORD) as any, validateBody(RespondBookingDto), asyncHandler(ctrl.respond as any));
-router.patch('/:id/complete', authorize(UserRole.LANDLORD) as any, validateBody(CompleteBookingDto), asyncHandler(ctrl.complete as any));
+// Property Owner
+router.get('/owner', authorize(UserRole.PROPERTY_OWNER) as any, asyncHandler(ctrl.getOwnerBookings as any));
+router.patch('/:id/respond', authorize(UserRole.PROPERTY_OWNER, UserRole.AGENT) as any, validateBody(RespondBookingDto), asyncHandler(ctrl.respond as any));
+router.patch('/:id/inspection-date', authorize(UserRole.PROPERTY_OWNER, UserRole.AGENT) as any, validateBody(AssignInspectionDateDto), asyncHandler(ctrl.assignInspectionDate as any));
+router.patch('/:id/complete', authorize(UserRole.PROPERTY_OWNER, UserRole.AGENT) as any, validateBody(CompleteBookingDto), asyncHandler(ctrl.complete as any));
+
+// Agent
+router.get('/agent', authorize(UserRole.AGENT) as any, asyncHandler(ctrl.getAgentBookings as any));
 
 // Shared
 router.get('/:id', asyncHandler(ctrl.findById as any));

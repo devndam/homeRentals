@@ -3,7 +3,7 @@ import { AppDataSource } from '../../config/data-source';
 import { Payment } from './payment.entity';
 import { User } from '../users/user.entity';
 import { ApiError } from '../../utils/api-error';
-import { PaymentStatus, PaymentType, PaginatedResponse, PaginationQuery } from '../../types';
+import { PaymentStatus, PaginatedResponse, PaginationQuery } from '../../types';
 import { InitiatePaymentDto } from './payment.dto';
 import { PaystackService } from './paystack.service';
 import { env } from '../../config/env';
@@ -23,7 +23,7 @@ export class PaymentService {
     // Calculate commission split
     const commissionRate = env.paystack.commissionPercent / 100;
     const commission = Math.round(dto.amount * commissionRate * 100) / 100;
-    const landlordAmount = dto.amount - commission;
+    const ownerAmount = dto.amount - commission;
 
     // Create payment record
     const payment = paymentRepo().create({
@@ -34,7 +34,7 @@ export class PaymentService {
       type: dto.type,
       amount: dto.amount,
       commission,
-      landlordAmount,
+      ownerAmount,
       description: dto.description,
       status: PaymentStatus.PENDING,
     });
@@ -43,17 +43,17 @@ export class PaymentService {
 
     // Initialize Paystack transaction
     try {
-      // Find landlord subaccount for split payment
+      // Find property owner subaccount for split payment
       let subaccount: string | undefined;
       let transactionCharge: number | undefined;
 
       if (dto.propertyId) {
         const property = await AppDataSource.getRepository('Property').findOne({
           where: { id: dto.propertyId },
-          relations: ['landlord'],
+          relations: ['owner'],
         });
-        if (property?.landlord?.paystackSubaccountCode) {
-          subaccount = property.landlord.paystackSubaccountCode;
+        if (property?.owner?.paystackSubaccountCode) {
+          subaccount = property.owner.paystackSubaccountCode;
           transactionCharge = Math.round(commission * 100); // commission in kobo
         }
       }

@@ -1,5 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsDateString, IsEnum, IsUUID } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsString, IsOptional, IsDateString, IsEnum, IsUUID } from 'class-validator';
 import { BookingStatus } from '../../types';
 
 export class CreateBookingDto {
@@ -22,11 +21,16 @@ export class RespondBookingDto {
 
   @IsString()
   @IsOptional()
-  landlordNote?: string;
+  ownerNote?: string;
 
   @IsDateString()
   @IsOptional()
   alternativeDate?: string;
+}
+
+export class AssignInspectionDateDto {
+  @IsDateString()
+  inspectionDate!: string;
 }
 
 export class CompleteBookingDto {

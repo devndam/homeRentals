@@ -22,7 +22,7 @@ export async function generateAgreementPdf(agreement: Agreement): Promise<string
     doc.fontSize(14).font('Helvetica-Bold').text('PARTIES');
     doc.moveDown(0.5);
     doc.fontSize(11).font('Helvetica');
-    doc.text(`Landlord: ${agreement.landlord?.firstName} ${agreement.landlord?.lastName}`);
+    doc.text(`Property Owner: ${agreement.owner?.firstName} ${agreement.owner?.lastName}`);
     doc.text(`Tenant: ${agreement.tenant?.firstName} ${agreement.tenant?.lastName}`);
     doc.moveDown();
 
@@ -61,8 +61,8 @@ export async function generateAgreementPdf(agreement: Agreement): Promise<string
     if (agreement.tenantSignedAt) {
       doc.text(`Tenant Signed: ${agreement.tenantSignedAt.toISOString()}`);
     }
-    if (agreement.landlordSignedAt) {
-      doc.text(`Landlord Signed: ${agreement.landlordSignedAt.toISOString()}`);
+    if (agreement.ownerSignedAt) {
+      doc.text(`Property Owner Signed: ${agreement.ownerSignedAt.toISOString()}`);
     }
 
     doc.moveDown(2);

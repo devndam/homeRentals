@@ -13,10 +13,10 @@ const propertyRepo = () => AppDataSource.getRepository(Property);
 const userRepo = () => AppDataSource.getRepository(User);
 
 export class AgreementService {
-  async create(landlordId: string, dto: CreateAgreementDto): Promise<Agreement> {
-    // Verify property belongs to landlord
+  async create(ownerId: string, dto: CreateAgreementDto): Promise<Agreement> {
+    // Verify property belongs to owner
     const property = await propertyRepo().findOne({
-      where: { id: dto.propertyId, landlordId },
+      where: { id: dto.propertyId, ownerId },
     });
     if (!property) throw ApiError.notFound('Property not found or not owned by you');
 
@@ -27,7 +27,7 @@ export class AgreementService {
     if (!tenant) throw ApiError.notFound('Tenant not found');
 
     const agreement = agreementRepo().create({
-      landlordId,
+      ownerId,
       tenantId: dto.tenantId,
       propertyId: dto.propertyId,
       rentAmount: dto.rentAmount,
@@ -45,13 +45,13 @@ export class AgreementService {
   async findById(id: string, userId: string): Promise<Agreement> {
     const agreement = await agreementRepo().findOne({
       where: { id },
-      relations: ['tenant', 'landlord', 'property'],
+      relations: ['tenant', 'owner', 'property'],
     });
 
     if (!agreement) throw ApiError.notFound('Agreement not found');
 
     // Only parties to the agreement can view it
-    if (agreement.tenantId !== userId && agreement.landlordId !== userId) {
+    if (agreement.tenantId !== userId && agreement.ownerId !== userId) {
       throw ApiError.forbidden('You are not authorized to view this agreement');
     }
 
@@ -63,12 +63,12 @@ export class AgreementService {
       .createQueryBuilder('a')
       .leftJoinAndSelect('a.property', 'p')
       .leftJoinAndSelect('a.tenant', 'tenant')
-      .leftJoinAndSelect('a.landlord', 'landlord');
+      .leftJoinAndSelect('a.owner', 'owner');
 
     if (role === UserRole.TENANT) {
       qb.where('a.tenantId = :userId', { userId });
     } else {
-      qb.where('a.landlordId = :userId', { userId });
+      qb.where('a.ownerId = :userId', { userId });
     }
 
     return paginate(qb, { ...query, sort: query.sort || 'createdAt', order: query.order || 'DESC' });
@@ -83,21 +83,21 @@ export class AgreementService {
 
     agreement.tenantSignature = dto.signature;
     agreement.tenantSignedAt = new Date();
-    agreement.status = AgreementStatus.PENDING_LANDLORD;
+    agreement.status = AgreementStatus.PENDING_OWNER;
 
     return agreementRepo().save(agreement);
   }
 
-  async signAsLandlord(agreementId: string, landlordId: string, dto: SignAgreementDto): Promise<Agreement> {
+  async signAsOwner(agreementId: string, ownerId: string, dto: SignAgreementDto): Promise<Agreement> {
     const agreement = await agreementRepo().findOne({
-      where: { id: agreementId, landlordId, status: AgreementStatus.PENDING_LANDLORD },
-      relations: ['tenant', 'landlord', 'property'],
+      where: { id: agreementId, ownerId, status: AgreementStatus.PENDING_OWNER },
+      relations: ['tenant', 'owner', 'property'],
     });
 
     if (!agreement) throw ApiError.notFound('Agreement not found or not pending your signature');
 
-    agreement.landlordSignature = dto.signature;
-    agreement.landlordSignedAt = new Date();
+    agreement.ownerSignature = dto.signature;
+    agreement.ownerSignedAt = new Date();
     agreement.status = AgreementStatus.ACTIVE;
 
     // Generate PDF
@@ -111,9 +111,9 @@ export class AgreementService {
     return agreementRepo().save(agreement);
   }
 
-  async terminate(agreementId: string, landlordId: string): Promise<Agreement> {
+  async terminate(agreementId: string, ownerId: string): Promise<Agreement> {
     const agreement = await agreementRepo().findOne({
-      where: { id: agreementId, landlordId },
+      where: { id: agreementId, ownerId },
     });
 
     if (!agreement) throw ApiError.notFound('Agreement not found');

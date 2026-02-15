@@ -2,8 +2,8 @@ import { AppDataSource } from '../../config/data-source';
 import { Booking } from './booking.entity';
 import { Property } from '../properties/property.entity';
 import { ApiError } from '../../utils/api-error';
-import { BookingStatus, PaginatedResponse, PaginationQuery, PropertyStatus } from '../../types';
-import { CreateBookingDto, RespondBookingDto, CompleteBookingDto } from './booking.dto';
+import { BookingStatus, PaginatedResponse, PaginationQuery, PropertyStatus, UserRole } from '../../types';
+import { CreateBookingDto, RespondBookingDto, CompleteBookingDto, AssignInspectionDateDto } from './booking.dto';
 import { paginate } from '../../utils/pagination';
 
 const bookingRepo = () => AppDataSource.getRepository(Booking);
@@ -17,7 +17,7 @@ export class BookingService {
 
     if (!property) throw ApiError.notFound('Property not found or not available');
 
-    if (property.landlordId === tenantId) {
+    if (property.ownerId === tenantId) {
       throw ApiError.badRequest('You cannot book your own property');
     }
 
@@ -37,7 +37,8 @@ export class BookingService {
     const booking = bookingRepo().create({
       tenantId,
       propertyId: dto.propertyId,
-      landlordId: property.landlordId,
+      ownerId: property.ownerId,
+      agentId: property.agentId,
       proposedDate: new Date(dto.proposedDate),
       message: dto.message,
     });
@@ -50,31 +51,50 @@ export class BookingService {
       .createQueryBuilder('b')
       .leftJoinAndSelect('b.property', 'p')
       .leftJoinAndSelect('p.images', 'img', 'img.isPrimary = true')
-      .leftJoinAndSelect('b.landlord', 'landlord')
+      .leftJoinAndSelect('b.owner', 'owner')
+      .leftJoinAndSelect('b.agent', 'agent')
       .where('b.tenantId = :tenantId', { tenantId });
 
     return paginate(qb, { ...query, sort: query.sort || 'createdAt', order: query.order || 'DESC' });
   }
 
-  async getLandlordBookings(landlordId: string, query: PaginationQuery): Promise<PaginatedResponse<Booking>> {
+  async getOwnerBookings(ownerId: string, query: PaginationQuery): Promise<PaginatedResponse<Booking>> {
     const qb = bookingRepo()
       .createQueryBuilder('b')
       .leftJoinAndSelect('b.property', 'p')
       .leftJoinAndSelect('b.tenant', 'tenant')
-      .where('b.landlordId = :landlordId', { landlordId });
+      .leftJoinAndSelect('b.agent', 'agent')
+      .where('b.ownerId = :ownerId', { ownerId });
 
     return paginate(qb, { ...query, sort: query.sort || 'createdAt', order: query.order || 'DESC' });
   }
 
-  async respond(bookingId: string, landlordId: string, dto: RespondBookingDto): Promise<Booking> {
-    const booking = await bookingRepo().findOne({
-      where: { id: bookingId, landlordId, status: BookingStatus.PENDING },
-    });
+  async getAgentBookings(agentId: string, query: PaginationQuery): Promise<PaginatedResponse<Booking>> {
+    const qb = bookingRepo()
+      .createQueryBuilder('b')
+      .leftJoinAndSelect('b.property', 'p')
+      .leftJoinAndSelect('b.tenant', 'tenant')
+      .leftJoinAndSelect('b.owner', 'owner')
+      .where('b.agentId = :agentId', { agentId });
 
+    return paginate(qb, { ...query, sort: query.sort || 'createdAt', order: query.order || 'DESC' });
+  }
+
+  async respond(bookingId: string, userId: string, userRole: UserRole, dto: RespondBookingDto): Promise<Booking> {
+    const whereClause: any = { id: bookingId, status: BookingStatus.PENDING };
+
+    // Owner or assigned agent can respond
+    if (userRole === UserRole.AGENT) {
+      whereClause.agentId = userId;
+    } else {
+      whereClause.ownerId = userId;
+    }
+
+    const booking = await bookingRepo().findOne({ where: whereClause });
     if (!booking) throw ApiError.notFound('Booking not found or already responded');
 
     booking.status = dto.status;
-    booking.landlordNote = dto.landlordNote;
+    booking.ownerNote = dto.ownerNote;
     if (dto.alternativeDate) {
       booking.alternativeDate = new Date(dto.alternativeDate);
     }
@@ -82,11 +102,37 @@ export class BookingService {
     return bookingRepo().save(booking);
   }
 
-  async complete(bookingId: string, landlordId: string, dto: CompleteBookingDto): Promise<Booking> {
-    const booking = await bookingRepo().findOne({
-      where: { id: bookingId, landlordId, status: BookingStatus.APPROVED },
-    });
+  async assignInspectionDate(bookingId: string, userId: string, userRole: UserRole, dto: AssignInspectionDateDto): Promise<Booking> {
+    const whereClause: any = { id: bookingId };
 
+    if (userRole === UserRole.AGENT) {
+      whereClause.agentId = userId;
+    } else {
+      whereClause.ownerId = userId;
+    }
+
+    const booking = await bookingRepo().findOne({ where: whereClause });
+    if (!booking) throw ApiError.notFound('Booking not found');
+
+    if (booking.status !== BookingStatus.PENDING && booking.status !== BookingStatus.APPROVED) {
+      throw ApiError.badRequest('Cannot assign inspection date for this booking status');
+    }
+
+    booking.inspectionDate = new Date(dto.inspectionDate);
+    booking.status = BookingStatus.APPROVED;
+    return bookingRepo().save(booking);
+  }
+
+  async complete(bookingId: string, userId: string, userRole: UserRole, dto: CompleteBookingDto): Promise<Booking> {
+    const whereClause: any = { id: bookingId, status: BookingStatus.APPROVED };
+
+    if (userRole === UserRole.AGENT) {
+      whereClause.agentId = userId;
+    } else {
+      whereClause.ownerId = userId;
+    }
+
+    const booking = await bookingRepo().findOne({ where: whereClause });
     if (!booking) throw ApiError.notFound('Booking not found or not approved');
 
     booking.status = dto.status;
@@ -111,7 +157,7 @@ export class BookingService {
   async findById(id: string): Promise<Booking> {
     const booking = await bookingRepo().findOne({
       where: { id },
-      relations: ['property', 'property.images', 'tenant', 'landlord'],
+      relations: ['property', 'property.images', 'tenant', 'owner', 'agent'],
     });
     if (!booking) throw ApiError.notFound('Booking not found');
     return booking;

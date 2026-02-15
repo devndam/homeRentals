@@ -30,20 +30,20 @@ async function seed() {
     console.log('[Seed] Super Admin created: admin@rentals.ng / Admin@123456');
   }
 
-  // Create sample landlord
-  const landlordExists = await userRepo.findOne({ where: { email: 'landlord@test.com' } });
-  if (!landlordExists) {
-    const landlord = userRepo.create({
+  // Create sample property owner
+  const ownerExists = await userRepo.findOne({ where: { email: 'owner@test.com' } });
+  if (!ownerExists) {
+    const owner = userRepo.create({
       firstName: 'Chinedu',
       lastName: 'Okafor',
-      email: 'landlord@test.com',
+      email: 'owner@test.com',
       phone: '+2348011111111',
       password: await bcrypt.hash('Password@123', 12),
-      role: UserRole.LANDLORD,
+      role: UserRole.PROPERTY_OWNER,
       emailVerified: true,
     });
-    await userRepo.save(landlord);
-    console.log('[Seed] Landlord created: landlord@test.com / Password@123');
+    await userRepo.save(owner);
+    console.log('[Seed] Property Owner created: owner@test.com / Password@123');
   }
 
   // Create sample tenant

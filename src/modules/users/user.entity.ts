@@ -36,7 +36,7 @@ export class User {
   @Column({ nullable: true })
   avatarUrl?: string;
 
-  // ─── Landlord-specific ────────────────────
+  // ─── Property Owner-specific ────────────────
   @Column({ nullable: true, length: 255 })
   bankName?: string;
 
@@ -57,6 +57,10 @@ export class User {
     preferredLocations?: string[];
     propertyTypes?: string[];
   };
+
+  // ─── Agent-specific ─────────────────────────
+  @Column({ type: 'uuid', nullable: true })
+  addedByOwnerId?: string;
 
   // ─── Verification ─────────────────────────
   @Column({ default: false })
@@ -94,7 +98,7 @@ export class User {
   updatedAt!: Date;
 
   // ─── Relations ────────────────────────────
-  @OneToMany(() => Property, (p) => p.landlord)
+  @OneToMany(() => Property, (p) => p.owner)
   properties!: Property[];
 
   @OneToMany(() => Booking, (b) => b.tenant)
@@ -103,8 +107,8 @@ export class User {
   @OneToMany(() => Agreement, (a) => a.tenant)
   tenantAgreements!: Agreement[];
 
-  @OneToMany(() => Agreement, (a) => a.landlord)
-  landlordAgreements!: Agreement[];
+  @OneToMany(() => Agreement, (a) => a.owner)
+  ownerAgreements!: Agreement[];
 
   @OneToMany(() => Payment, (p) => p.user)
   payments!: Payment[];

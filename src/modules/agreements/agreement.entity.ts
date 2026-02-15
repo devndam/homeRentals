@@ -15,7 +15,7 @@ export class Agreement {
   tenantId!: string;
 
   @Column({ type: 'uuid' })
-  landlordId!: string;
+  ownerId!: string;
 
   @Column({ type: 'uuid' })
   propertyId!: string;
@@ -50,10 +50,10 @@ export class Agreement {
   tenantSignedAt?: Date;
 
   @Column({ nullable: true })
-  landlordSignature?: string;
+  ownerSignature?: string;
 
   @Column({ type: 'timestamp', nullable: true })
-  landlordSignedAt?: Date;
+  ownerSignedAt?: Date;
 
   // ─── PDF ──────────────────────────────────
   @Column({ nullable: true })
@@ -64,9 +64,9 @@ export class Agreement {
   @JoinColumn({ name: 'tenantId' })
   tenant!: User;
 
-  @ManyToOne(() => User, (u) => u.landlordAgreements, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'landlordId' })
-  landlord!: User;
+  @ManyToOne(() => User, (u) => u.ownerAgreements, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'ownerId' })
+  owner!: User;
 
   @ManyToOne(() => Property, (p) => p.agreements, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'propertyId' })

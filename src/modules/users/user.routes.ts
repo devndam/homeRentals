@@ -14,8 +14,8 @@ router.use(authenticate as any);
 
 router.get('/profile', asyncHandler(ctrl.getProfile as any));
 router.patch('/profile', validateBody(UpdateProfileDto), asyncHandler(ctrl.updateProfile as any));
-router.put('/bank-details', authorize(UserRole.LANDLORD) as any, validateBody(UpdateBankDetailsDto), asyncHandler(ctrl.updateBankDetails as any));
+router.put('/bank-details', authorize(UserRole.PROPERTY_OWNER) as any, validateBody(UpdateBankDetailsDto), asyncHandler(ctrl.updateBankDetails as any));
 router.put('/preferences', authorize(UserRole.TENANT) as any, validateBody(UpdatePreferencesDto), asyncHandler(ctrl.updatePreferences as any));
-router.get('/landlords/:id', asyncHandler(ctrl.getLandlordProfile as any));
+router.get('/owners/:id', asyncHandler(ctrl.getOwnerProfile as any));
 
 export default router;

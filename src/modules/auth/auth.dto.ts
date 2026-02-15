@@ -21,7 +21,7 @@ export class RegisterDto {
   @MinLength(8, { message: 'Password must be at least 8 characters' })
   password!: string;
 
-  @IsEnum(UserRole, { message: 'Role must be tenant or landlord' })
+  @IsEnum(UserRole, { message: 'Role must be tenant or property_owner' })
   @IsOptional()
   role?: UserRole;
 }

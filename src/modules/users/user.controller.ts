@@ -26,8 +26,8 @@ export class UserController {
     return sendSuccess(res, user, 'Preferences updated');
   }
 
-  async getLandlordProfile(req: AuthenticatedRequest, res: Response) {
-    const profile = await userService.getLandlordPublicProfile(req.params.id);
+  async getOwnerProfile(req: AuthenticatedRequest, res: Response) {
+    const profile = await userService.getOwnerPublicProfile(req.params.id);
     return sendSuccess(res, profile);
   }
 }

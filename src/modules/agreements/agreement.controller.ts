@@ -26,8 +26,8 @@ export class AgreementController {
     return sendSuccess(res, agreement, 'Agreement signed by tenant');
   }
 
-  async signAsLandlord(req: AuthenticatedRequest, res: Response) {
-    const agreement = await agreementService.signAsLandlord(req.params.id, req.user.sub, req.body);
+  async signAsOwner(req: AuthenticatedRequest, res: Response) {
+    const agreement = await agreementService.signAsOwner(req.params.id, req.user.sub, req.body);
     return sendSuccess(res, agreement, 'Agreement fully signed');
   }
 

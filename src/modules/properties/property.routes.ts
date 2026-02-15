@@ -21,12 +21,16 @@ router.use(authenticate as any);
 router.post('/:id/favorite', asyncHandler(ctrl.toggleFavorite as any));
 router.get('/me/favorites', asyncHandler(ctrl.getFavorites as any));
 
-// Landlord
-router.post('/', authorize(UserRole.LANDLORD) as any, validateBody(CreatePropertyDto), asyncHandler(ctrl.create as any));
-router.get('/me/listings', authorize(UserRole.LANDLORD) as any, asyncHandler(ctrl.findMyListings as any));
-router.put('/:id', authorize(UserRole.LANDLORD) as any, validateBody(UpdatePropertyDto), asyncHandler(ctrl.update as any));
-router.delete('/:id', authorize(UserRole.LANDLORD) as any, asyncHandler(ctrl.delete as any));
-router.post('/:id/images', authorize(UserRole.LANDLORD) as any, uploadMedia.array('images', 15), asyncHandler(ctrl.uploadImages as any));
-router.delete('/:id/images/:imageId', authorize(UserRole.LANDLORD) as any, asyncHandler(ctrl.deleteImage as any));
+// Property Owner
+router.post('/', authorize(UserRole.PROPERTY_OWNER) as any, validateBody(CreatePropertyDto), asyncHandler(ctrl.create as any));
+router.get('/me/listings', authorize(UserRole.PROPERTY_OWNER) as any, asyncHandler(ctrl.findMyListings as any));
+router.put('/:id', authorize(UserRole.PROPERTY_OWNER) as any, validateBody(UpdatePropertyDto), asyncHandler(ctrl.update as any));
+router.delete('/:id', authorize(UserRole.PROPERTY_OWNER) as any, asyncHandler(ctrl.delete as any));
+router.post('/:id/images', authorize(UserRole.PROPERTY_OWNER) as any, uploadMedia.array('images', 15), asyncHandler(ctrl.uploadImages as any));
+router.delete('/:id/images/:imageId', authorize(UserRole.PROPERTY_OWNER) as any, asyncHandler(ctrl.deleteImage as any));
+
+// Agent assignment
+router.patch('/:id/assign-agent', authorize(UserRole.PROPERTY_OWNER) as any, asyncHandler(ctrl.assignAgent as any));
+router.patch('/:id/remove-agent', authorize(UserRole.PROPERTY_OWNER) as any, asyncHandler(ctrl.removeAgent as any));
 
 export default router;

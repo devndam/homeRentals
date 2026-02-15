@@ -3,7 +3,8 @@ import { Request } from 'express';
 // ─── Enums ───────────────────────────────────────────────
 export enum UserRole {
   TENANT = 'tenant',
-  LANDLORD = 'landlord',
+  PROPERTY_OWNER = 'property_owner',
+  AGENT = 'agent',
   ADMIN = 'admin',
 }
 
@@ -40,7 +41,7 @@ export enum BookingStatus {
 export enum AgreementStatus {
   DRAFT = 'draft',
   PENDING_TENANT = 'pending_tenant',
-  PENDING_LANDLORD = 'pending_landlord',
+  PENDING_OWNER = 'pending_owner',
   ACTIVE = 'active',
   EXPIRED = 'expired',
   TERMINATED = 'terminated',

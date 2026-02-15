@@ -4,7 +4,7 @@ export const swaggerDocument = {
   openapi: '3.0.3',
   info: {
     title: 'Rentals NG API',
-    description: 'API for a rental property platform connecting landlords and tenants in Nigeria.',
+    description: 'API for a rental property platform connecting property owners and tenants in Nigeria.',
     version: '1.0.0',
     contact: { email: 'dev@rentals.ng' },
   },
@@ -19,6 +19,7 @@ export const swaggerDocument = {
     { name: 'Agreements', description: 'Rental agreements & signing' },
     { name: 'Payments', description: 'Paystack payments & webhooks' },
     { name: 'Admin', description: 'Admin dashboard & moderation' },
+    { name: 'Agents', description: 'Agent management by property owners' },
   ],
   components: {
     securitySchemes: {
@@ -73,7 +74,7 @@ export const swaggerDocument = {
           email: { type: 'string', format: 'email', example: 'chinedu@example.com' },
           phone: { type: 'string', example: '+2348012345678' },
           password: { type: 'string', minLength: 8, example: 'SecurePass123' },
-          role: { type: 'string', enum: ['tenant', 'landlord'], default: 'tenant' },
+          role: { type: 'string', enum: ['tenant', 'property_owner'], default: 'tenant' },
         },
       },
       LoginRequest: {
@@ -139,7 +140,7 @@ export const swaggerDocument = {
           lastName: { type: 'string' },
           email: { type: 'string' },
           phone: { type: 'string' },
-          role: { type: 'string', enum: ['tenant', 'landlord', 'admin'] },
+          role: { type: 'string', enum: ['tenant', 'property_owner', 'agent', 'admin'] },
           avatarUrl: { type: 'string', nullable: true },
           emailVerified: { type: 'boolean' },
           identityVerified: { type: 'boolean' },
@@ -201,7 +202,8 @@ export const swaggerDocument = {
           isPetFriendly: { type: 'boolean' },
           viewCount: { type: 'integer' },
           images: { type: 'array', items: { $ref: '#/components/schemas/PropertyImage' } },
-          landlordId: { type: 'string', format: 'uuid' },
+          ownerId: { type: 'string', format: 'uuid' },
+          agentId: { type: 'string', format: 'uuid', nullable: true },
           createdAt: { type: 'string', format: 'date-time' },
         },
       },
@@ -251,11 +253,13 @@ export const swaggerDocument = {
           id: { type: 'string', format: 'uuid' },
           tenantId: { type: 'string', format: 'uuid' },
           propertyId: { type: 'string', format: 'uuid' },
-          landlordId: { type: 'string', format: 'uuid' },
+          ownerId: { type: 'string', format: 'uuid' },
+          agentId: { type: 'string', format: 'uuid', nullable: true },
           proposedDate: { type: 'string', format: 'date-time' },
+          inspectionDate: { type: 'string', format: 'date-time', nullable: true },
           message: { type: 'string', nullable: true },
           status: { type: 'string', enum: ['pending', 'approved', 'rejected', 'completed', 'cancelled', 'no_show'] },
-          landlordNote: { type: 'string', nullable: true },
+          ownerNote: { type: 'string', nullable: true },
           alternativeDate: { type: 'string', format: 'date-time', nullable: true },
           createdAt: { type: 'string', format: 'date-time' },
         },
@@ -274,7 +278,7 @@ export const swaggerDocument = {
         required: ['status'],
         properties: {
           status: { type: 'string', enum: ['approved', 'rejected'] },
-          landlordNote: { type: 'string', example: 'See you then!' },
+          ownerNote: { type: 'string', example: 'See you then!' },
           alternativeDate: { type: 'string', format: 'date-time' },
         },
       },
@@ -285,16 +289,16 @@ export const swaggerDocument = {
         properties: {
           id: { type: 'string', format: 'uuid' },
           tenantId: { type: 'string', format: 'uuid' },
-          landlordId: { type: 'string', format: 'uuid' },
+          ownerId: { type: 'string', format: 'uuid' },
           propertyId: { type: 'string', format: 'uuid' },
-          status: { type: 'string', enum: ['draft', 'pending_tenant', 'pending_landlord', 'active', 'expired', 'terminated'] },
+          status: { type: 'string', enum: ['draft', 'pending_tenant', 'pending_owner', 'active', 'expired', 'terminated'] },
           rentAmount: { type: 'number' },
           rentPeriod: { type: 'string' },
           cautionDeposit: { type: 'number', nullable: true },
           startDate: { type: 'string', format: 'date' },
           endDate: { type: 'string', format: 'date' },
           tenantSignedAt: { type: 'string', format: 'date-time', nullable: true },
-          landlordSignedAt: { type: 'string', format: 'date-time', nullable: true },
+          ownerSignedAt: { type: 'string', format: 'date-time', nullable: true },
           pdfUrl: { type: 'string', nullable: true },
           createdAt: { type: 'string', format: 'date-time' },
         },
@@ -332,7 +336,7 @@ export const swaggerDocument = {
           status: { type: 'string', enum: ['pending', 'success', 'failed', 'refunded'] },
           amount: { type: 'number' },
           commission: { type: 'number' },
-          landlordAmount: { type: 'number' },
+          ownerAmount: { type: 'number' },
           currency: { type: 'string', example: 'NGN' },
           createdAt: { type: 'string', format: 'date-time' },
         },
@@ -399,8 +403,9 @@ export const swaggerDocument = {
             type: 'object',
             properties: {
               total: { type: 'integer' },
-              landlords: { type: 'integer' },
+              propertyOwners: { type: 'integer' },
               tenants: { type: 'integer' },
+              agents: { type: 'integer' },
             },
           },
           properties: {
@@ -529,12 +534,12 @@ export const swaggerDocument = {
     '/users/bank-details': {
       put: {
         tags: ['Users'],
-        summary: 'Update bank details (landlord only)',
+        summary: 'Update bank details (property owner only)',
         security: [{ BearerAuth: [] }],
         requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/UpdateBankDetailsRequest' } } } },
         responses: {
           200: { description: 'Bank details updated' },
-          403: { description: 'Not a landlord' },
+          403: { description: 'Not a property owner' },
         },
       },
     },
@@ -547,13 +552,13 @@ export const swaggerDocument = {
         responses: { 200: { description: 'Preferences updated' } },
       },
     },
-    '/users/landlords/{id}': {
+    '/users/owners/{id}': {
       get: {
         tags: ['Users'],
-        summary: 'Get landlord public profile',
+        summary: 'Get property owner public profile',
         security: [{ BearerAuth: [] }],
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
-        responses: { 200: { description: 'Landlord profile' } },
+        responses: { 200: { description: 'Property owner profile' } },
       },
     },
 
@@ -582,19 +587,19 @@ export const swaggerDocument = {
       },
       post: {
         tags: ['Properties'],
-        summary: 'Create a property listing (landlord only)',
+        summary: 'Create a property listing (property owner only)',
         security: [{ BearerAuth: [] }],
         requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/CreatePropertyRequest' } } } },
         responses: {
           201: { description: 'Property created (pending review)' },
-          403: { description: 'Not a landlord' },
+          403: { description: 'Not a property owner' },
         },
       },
     },
     '/properties/me/listings': {
       get: {
         tags: ['Properties'],
-        summary: 'Get my listings (landlord)',
+        summary: 'Get my listings (property owner)',
         security: [{ BearerAuth: [] }],
         parameters: [
           { name: 'page', in: 'query', schema: { type: 'integer' } },
@@ -616,11 +621,11 @@ export const swaggerDocument = {
         tags: ['Properties'],
         summary: 'Get property details (public)',
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
-        responses: { 200: { description: 'Property details with images and landlord info' } },
+        responses: { 200: { description: 'Property details with images and owner info' } },
       },
       put: {
         tags: ['Properties'],
-        summary: 'Update property (landlord, owner only)',
+        summary: 'Update property (property owner only)',
         security: [{ BearerAuth: [] }],
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
         requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/CreatePropertyRequest' } } } },
@@ -628,7 +633,7 @@ export const swaggerDocument = {
       },
       delete: {
         tags: ['Properties'],
-        summary: 'Delete property (landlord, owner only)',
+        summary: 'Delete property (property owner only)',
         security: [{ BearerAuth: [] }],
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
         responses: { 204: { description: 'Property deleted' } },
@@ -678,6 +683,32 @@ export const swaggerDocument = {
       },
     },
 
+    '/properties/{id}/assign-agent': {
+      patch: {
+        tags: ['Properties'],
+        summary: 'Assign an agent to a property',
+        security: [{ BearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['agentId'], properties: { agentId: { type: 'string', format: 'uuid' } } } } } },
+        responses: {
+          200: { description: 'Agent assigned to property' },
+          404: { description: 'Property or agent not found' },
+        },
+      },
+    },
+    '/properties/{id}/remove-agent': {
+      patch: {
+        tags: ['Properties'],
+        summary: 'Remove agent from a property',
+        security: [{ BearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        responses: {
+          200: { description: 'Agent removed from property' },
+          404: { description: 'Property not found' },
+        },
+      },
+    },
+
     // ═══ BOOKINGS ═══════════════════════════════
     '/bookings': {
       post: {
@@ -699,12 +730,20 @@ export const swaggerDocument = {
         responses: { 200: { description: 'Tenant bookings' } },
       },
     },
-    '/bookings/landlord': {
+    '/bookings/owner': {
       get: {
         tags: ['Bookings'],
-        summary: 'Get bookings for my properties (landlord)',
+        summary: 'Get bookings for my properties (property owner)',
         security: [{ BearerAuth: [] }],
-        responses: { 200: { description: 'Landlord bookings' } },
+        responses: { 200: { description: 'Owner bookings' } },
+      },
+    },
+    '/bookings/agent': {
+      get: {
+        tags: ['Bookings'],
+        summary: 'Get bookings assigned to me (agent)',
+        security: [{ BearerAuth: [] }],
+        responses: { 200: { description: 'Agent bookings' } },
       },
     },
     '/bookings/{id}': {
@@ -719,7 +758,7 @@ export const swaggerDocument = {
     '/bookings/{id}/respond': {
       patch: {
         tags: ['Bookings'],
-        summary: 'Approve or reject a booking (landlord)',
+        summary: 'Approve or reject a booking (property owner or agent)',
         security: [{ BearerAuth: [] }],
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
         requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/RespondBookingRequest' } } } },
@@ -729,7 +768,7 @@ export const swaggerDocument = {
     '/bookings/{id}/complete': {
       patch: {
         tags: ['Bookings'],
-        summary: 'Mark booking as completed or no-show (landlord)',
+        summary: 'Mark booking as completed or no-show (property owner or agent)',
         security: [{ BearerAuth: [] }],
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
         requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { status: { type: 'string', enum: ['completed', 'no_show'] } } } } } },
@@ -746,6 +785,20 @@ export const swaggerDocument = {
       },
     },
 
+    '/bookings/{id}/inspection-date': {
+      patch: {
+        tags: ['Bookings'],
+        summary: 'Assign an inspection date to a booking (property owner or agent)',
+        security: [{ BearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['inspectionDate'], properties: { inspectionDate: { type: 'string', format: 'date-time', example: '2026-03-20T14:00:00Z' } } } } } },
+        responses: {
+          200: { description: 'Inspection date assigned, booking approved' },
+          404: { description: 'Booking not found' },
+        },
+      },
+    },
+
     // ═══ AGREEMENTS ═════════════════════════════
     '/agreements': {
       get: {
@@ -756,7 +809,7 @@ export const swaggerDocument = {
       },
       post: {
         tags: ['Agreements'],
-        summary: 'Create a rental agreement (landlord)',
+        summary: 'Create a rental agreement (property owner)',
         security: [{ BearerAuth: [] }],
         requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/CreateAgreementRequest' } } } },
         responses: { 201: { description: 'Agreement created, pending tenant signature' } },
@@ -778,13 +831,13 @@ export const swaggerDocument = {
         security: [{ BearerAuth: [] }],
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
         requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/SignAgreementRequest' } } } },
-        responses: { 200: { description: 'Signed by tenant, pending landlord' } },
+        responses: { 200: { description: 'Signed by tenant, pending owner' } },
       },
     },
-    '/agreements/{id}/sign/landlord': {
+    '/agreements/{id}/sign/owner': {
       patch: {
         tags: ['Agreements'],
-        summary: 'Sign agreement as landlord (generates PDF)',
+        summary: 'Sign agreement as property owner (generates PDF)',
         security: [{ BearerAuth: [] }],
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
         requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/SignAgreementRequest' } } } },
@@ -794,7 +847,7 @@ export const swaggerDocument = {
     '/agreements/{id}/terminate': {
       patch: {
         tags: ['Agreements'],
-        summary: 'Terminate an active agreement (landlord)',
+        summary: 'Terminate an active agreement (property owner)',
         security: [{ BearerAuth: [] }],
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
         responses: { 200: { description: 'Agreement terminated' } },
@@ -946,7 +999,7 @@ export const swaggerDocument = {
         parameters: [
           { name: 'page', in: 'query', schema: { type: 'integer' } },
           { name: 'limit', in: 'query', schema: { type: 'integer' } },
-          { name: 'role', in: 'query', schema: { type: 'string', enum: ['tenant', 'landlord', 'admin'] } },
+          { name: 'role', in: 'query', schema: { type: 'string', enum: ['tenant', 'property_owner', 'agent', 'admin'] } },
           { name: 'search', in: 'query', schema: { type: 'string' } },
         ],
         responses: { 200: { description: 'Users list' } },
@@ -1030,6 +1083,72 @@ export const swaggerDocument = {
           { name: 'limit', in: 'query', schema: { type: 'integer' } },
         ],
         responses: { 200: { description: 'All payments' } },
+      },
+    },
+
+    // ═══ AGENTS ═══════════════════════════════════
+    '/agents': {
+      post: {
+        tags: ['Agents'],
+        summary: 'Add a new agent (property owner)',
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['firstName', 'lastName', 'email', 'phone', 'password'],
+                properties: {
+                  firstName: { type: 'string', example: 'Tunde' },
+                  lastName: { type: 'string', example: 'Bakare' },
+                  email: { type: 'string', format: 'email', example: 'tunde@example.com' },
+                  phone: { type: 'string', example: '+2348055555555' },
+                  password: { type: 'string', minLength: 8, example: 'AgentPass@123' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          201: { description: 'Agent created' },
+          409: { description: 'Email or phone already exists' },
+        },
+      },
+      get: {
+        tags: ['Agents'],
+        summary: 'List my agents (property owner)',
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          { name: 'page', in: 'query', schema: { type: 'integer' } },
+          { name: 'limit', in: 'query', schema: { type: 'integer' } },
+        ],
+        responses: { 200: { description: 'Paginated list of agents' } },
+      },
+    },
+    '/agents/{id}': {
+      get: {
+        tags: ['Agents'],
+        summary: 'Get agent details',
+        security: [{ BearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        responses: { 200: { description: 'Agent details' } },
+      },
+      delete: {
+        tags: ['Agents'],
+        summary: 'Remove an agent',
+        security: [{ BearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        responses: { 200: { description: 'Agent deactivated' } },
+      },
+    },
+    '/agents/{id}/toggle-active': {
+      patch: {
+        tags: ['Agents'],
+        summary: 'Toggle agent active status',
+        security: [{ BearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        responses: { 200: { description: 'Agent status toggled' } },
       },
     },
   },

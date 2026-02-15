@@ -161,10 +161,11 @@ export class AdminService {
   // ═══════════════════════════════════════════════
 
   async getDashboardStats() {
-    const [totalUsers, totalLandlords, totalTenants, totalAdmins] = await Promise.all([
+    const [totalUsers, totalOwners, totalTenants, totalAgents, totalAdmins] = await Promise.all([
       userRepo().count(),
-      userRepo().count({ where: { role: UserRole.LANDLORD } }),
+      userRepo().count({ where: { role: UserRole.PROPERTY_OWNER } }),
       userRepo().count({ where: { role: UserRole.TENANT } }),
+      userRepo().count({ where: { role: UserRole.AGENT } }),
       userRepo().count({ where: { role: UserRole.ADMIN } }),
     ]);
 
@@ -185,7 +186,7 @@ export class AdminService {
       .getRawOne();
 
     return {
-      users: { total: totalUsers, landlords: totalLandlords, tenants: totalTenants, admins: totalAdmins },
+      users: { total: totalUsers, propertyOwners: totalOwners, tenants: totalTenants, agents: totalAgents, admins: totalAdmins },
       properties: { total: totalProperties, active: activeProperties, pendingReview: pendingProperties },
       bookings: totalBookings,
       agreements: totalAgreements,
@@ -230,7 +231,7 @@ export class AdminService {
     const qb = propertyRepo()
       .createQueryBuilder('p')
       .leftJoinAndSelect('p.images', 'img')
-      .leftJoinAndSelect('p.landlord', 'landlord')
+      .leftJoinAndSelect('p.owner', 'owner')
       .where('p.status = :status', { status: PropertyStatus.PENDING_REVIEW });
 
     return paginate(qb, { ...query, sort: query.sort || 'createdAt', order: query.order || 'ASC' });
@@ -280,7 +281,7 @@ export class AdminService {
     const qb = propertyRepo()
       .createQueryBuilder('p')
       .leftJoinAndSelect('p.images', 'img')
-      .leftJoinAndSelect('p.landlord', 'landlord');
+      .leftJoinAndSelect('p.owner', 'owner');
 
     if ((query as any).status) {
       qb.andWhere('p.status = :status', { status: (query as any).status });

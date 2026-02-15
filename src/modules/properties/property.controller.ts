@@ -22,7 +22,7 @@ export class PropertyController {
   }
 
   async findMyListings(req: AuthenticatedRequest, res: Response) {
-    const result = await propertyService.findByLandlord(req.user.sub, req.query as any);
+    const result = await propertyService.findByOwner(req.user.sub, req.query as any);
     return sendPaginated(res, result, 'My listings');
   }
 
@@ -34,6 +34,16 @@ export class PropertyController {
   async delete(req: AuthenticatedRequest, res: Response) {
     await propertyService.delete(req.params.id, req.user.sub);
     return sendNoContent(res);
+  }
+
+  async assignAgent(req: AuthenticatedRequest, res: Response) {
+    const property = await propertyService.assignAgent(req.params.id, req.user.sub, req.body.agentId);
+    return sendSuccess(res, property, 'Agent assigned to property');
+  }
+
+  async removeAgent(req: AuthenticatedRequest, res: Response) {
+    const property = await propertyService.removeAgent(req.params.id, req.user.sub);
+    return sendSuccess(res, property, 'Agent removed from property');
   }
 
   async uploadImages(req: AuthenticatedRequest, res: Response) {

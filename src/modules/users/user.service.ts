@@ -1,6 +1,7 @@
 import { AppDataSource } from '../../config/data-source';
 import { User } from './user.entity';
 import { ApiError } from '../../utils/api-error';
+import { UserRole } from '../../types';
 import { UpdateProfileDto, UpdateBankDetailsDto, UpdatePreferencesDto } from './user.dto';
 
 const userRepo = () => AppDataSource.getRepository(User);
@@ -44,12 +45,12 @@ export class UserService {
     return user;
   }
 
-  async getLandlordPublicProfile(landlordId: string) {
+  async getOwnerPublicProfile(ownerId: string) {
     const user = await userRepo().findOne({
-      where: { id: landlordId, role: 'landlord' as any },
+      where: { id: ownerId, role: UserRole.PROPERTY_OWNER },
       select: ['id', 'firstName', 'lastName', 'avatarUrl', 'createdAt', 'identityVerified'],
     });
-    if (!user) throw ApiError.notFound('Landlord not found');
+    if (!user) throw ApiError.notFound('Property owner not found');
     return user;
   }
 }
