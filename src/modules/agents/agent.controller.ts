@@ -17,8 +17,23 @@ export class AgentController {
   }
 
   async getAgentById(req: AuthenticatedRequest, res: Response) {
-    const agent = await agentService.getAgentById(req.params.id, req.user.sub);
-    return sendSuccess(res, agent);
+    const result = await agentService.getAgentById(req.params.id, req.user.sub);
+    return sendSuccess(res, result);
+  }
+
+  async getAgentBookings(req: AuthenticatedRequest, res: Response) {
+    const result = await agentService.getAgentBookings(req.params.id, req.user.sub, req.query as any);
+    return sendPaginated(res, result);
+  }
+
+  async getAgentProperties(req: AuthenticatedRequest, res: Response) {
+    const result = await agentService.getAgentProperties(req.params.id, req.user.sub, req.query as any);
+    return sendPaginated(res, result);
+  }
+
+  async updateAgent(req: AuthenticatedRequest, res: Response) {
+    const agent = await agentService.updateAgent(req.params.id, req.user.sub, req.body);
+    return sendSuccess(res, agent, 'Agent updated');
   }
 
   async removeAgent(req: AuthenticatedRequest, res: Response) {

@@ -4,10 +4,13 @@ import { authenticate, requirePermission } from '../../middleware/auth.middlewar
 import { validateBody } from '../../middleware/validate';
 import { asyncHandler } from '../../utils/async-handler';
 import { AdminPermission } from '../../types';
-import { CreateAdminDto, UpdateAdminPermissionsDto, UpdateAdminRoleDto, RejectPropertyDto } from './admin.dto';
+import { CreateAdminDto, UpdateAdminPermissionsDto, UpdateAdminRoleDto, UpdateUserDto, RejectPropertyDto } from './admin.dto';
+import { RejectKycDto } from '../kyc/kyc.dto';
+import { KycController } from '../kyc/kyc.controller';
 
 const router = Router();
 const ctrl = new AdminController();
+const kycCtrl = new KycController();
 
 // All admin routes require authentication (permission checked per-route)
 router.use(authenticate as any);
@@ -26,15 +29,24 @@ router.get('/dashboard', requirePermission(AdminPermission.VIEW_DASHBOARD) as an
 
 // ─── User Management ────────────────────────
 router.get('/users', requirePermission(AdminPermission.VIEW_USERS) as any, asyncHandler(ctrl.getUsers as any));
+router.get('/users/:id', requirePermission(AdminPermission.VIEW_USERS) as any, asyncHandler(ctrl.getUserById as any));
+router.put('/users/:id', requirePermission(AdminPermission.VIEW_USERS) as any, validateBody(UpdateUserDto), asyncHandler(ctrl.updateUser as any));
 router.patch('/users/:id/toggle-active', requirePermission(AdminPermission.TOGGLE_USER_STATUS) as any, asyncHandler(ctrl.toggleUserActive as any));
 router.patch('/users/:id/verify', requirePermission(AdminPermission.VERIFY_USER) as any, asyncHandler(ctrl.verifyUser as any));
 
 // ─── Property Moderation ────────────────────
 router.get('/properties', requirePermission(AdminPermission.VIEW_PROPERTIES) as any, asyncHandler(ctrl.getAllProperties as any));
 router.get('/properties/pending', requirePermission(AdminPermission.VIEW_PROPERTIES) as any, asyncHandler(ctrl.getPendingProperties as any));
+router.get('/properties/:id', requirePermission(AdminPermission.VIEW_PROPERTIES) as any, asyncHandler(ctrl.getPropertyById as any));
 router.patch('/properties/:id/approve', requirePermission(AdminPermission.APPROVE_PROPERTY) as any, asyncHandler(ctrl.approveProperty as any));
 router.patch('/properties/:id/reject', requirePermission(AdminPermission.REJECT_PROPERTY) as any, validateBody(RejectPropertyDto), asyncHandler(ctrl.rejectProperty as any));
 router.patch('/properties/:id/suspend', requirePermission(AdminPermission.SUSPEND_PROPERTY) as any, validateBody(RejectPropertyDto), asyncHandler(ctrl.suspendProperty as any));
+
+// ─── KYC Management ────────────────────────
+router.get('/kyc', requirePermission(AdminPermission.MANAGE_KYC) as any, asyncHandler(kycCtrl.getAllSubmissions as any));
+router.get('/kyc/:id', requirePermission(AdminPermission.MANAGE_KYC) as any, asyncHandler(kycCtrl.getSubmissionById as any));
+router.patch('/kyc/:id/approve', requirePermission(AdminPermission.MANAGE_KYC) as any, asyncHandler(kycCtrl.approve as any));
+router.patch('/kyc/:id/reject', requirePermission(AdminPermission.MANAGE_KYC) as any, validateBody(RejectKycDto), asyncHandler(kycCtrl.reject as any));
 
 // ─── Payments ───────────────────────────────
 router.get('/payments', requirePermission(AdminPermission.VIEW_PAYMENTS) as any, asyncHandler(ctrl.getAllPayments as any));

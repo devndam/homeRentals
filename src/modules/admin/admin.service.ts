@@ -10,7 +10,7 @@ import {
   AdminPermission, ALL_ADMIN_PERMISSIONS,
   PaginatedResponse, PaginationQuery, PropertyStatus, PaymentStatus, UserRole,
 } from '../../types';
-import { CreateAdminDto, UpdateAdminPermissionsDto } from './admin.dto';
+import { CreateAdminDto, UpdateAdminPermissionsDto, UpdateUserDto } from './admin.dto';
 import { paginate } from '../../utils/pagination';
 
 const userRepo = () => AppDataSource.getRepository(User);
@@ -148,6 +148,7 @@ export class AdminService {
       [AdminPermission.VIEW_AGREEMENTS]: 'View all rental agreements',
       [AdminPermission.VIEW_DASHBOARD]: 'View dashboard analytics',
       [AdminPermission.MANAGE_DISPUTES]: 'Manage and resolve disputes',
+      [AdminPermission.MANAGE_KYC]: 'Review, approve, and reject KYC submissions',
     };
 
     return ALL_ADMIN_PERMISSIONS.map((p) => ({
@@ -198,7 +199,8 @@ export class AdminService {
   }
 
   async getUsers(query: PaginationQuery & { role?: UserRole; search?: string }): Promise<PaginatedResponse<User>> {
-    const qb = userRepo().createQueryBuilder('u');
+    const qb = userRepo().createQueryBuilder('u')
+      .where('u.role != :adminRole', { adminRole: UserRole.ADMIN });
 
     if (query.role) qb.andWhere('u.role = :role', { role: query.role });
     if ((query as any).search) {
@@ -209,6 +211,34 @@ export class AdminService {
     }
 
     return paginate(qb, { ...query, sort: query.sort || 'createdAt', order: query.order || 'DESC' });
+  }
+
+  async getUserById(userId: string): Promise<User> {
+    const user = await userRepo().findOne({ where: { id: userId } });
+    if (!user) throw ApiError.notFound('User not found');
+    return user;
+  }
+
+  async updateUser(userId: string, dto: UpdateUserDto): Promise<User> {
+    const user = await userRepo().findOne({ where: { id: userId } });
+    if (!user) throw ApiError.notFound('User not found');
+
+    if (user.role === UserRole.ADMIN) {
+      throw ApiError.badRequest('Cannot update admin users from this endpoint');
+    }
+
+    if (dto.email && dto.email !== user.email) {
+      const existing = await userRepo().findOne({ where: { email: dto.email } });
+      if (existing) throw ApiError.conflict('Email already registered');
+    }
+
+    if (dto.phone && dto.phone !== user.phone) {
+      const existing = await userRepo().findOne({ where: { phone: dto.phone } });
+      if (existing) throw ApiError.conflict('Phone number already registered');
+    }
+
+    Object.assign(user, dto);
+    return userRepo().save(user);
   }
 
   async toggleUserActive(userId: string): Promise<User> {
@@ -275,6 +305,15 @@ export class AdminService {
       .leftJoinAndSelect('p.property', 'prop');
 
     return paginate(qb, { ...query, sort: query.sort || 'createdAt', order: query.order || 'DESC' });
+  }
+
+  async getPropertyById(propertyId: string): Promise<Property> {
+    const property = await propertyRepo().findOne({
+      where: { id: propertyId },
+      relations: ['images', 'owner', 'agent'],
+    });
+    if (!property) throw ApiError.notFound('Property not found');
+    return property;
   }
 
   async getAllProperties(query: PaginationQuery & { status?: PropertyStatus }): Promise<PaginatedResponse<Property>> {

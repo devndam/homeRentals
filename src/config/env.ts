@@ -67,6 +67,7 @@ export const env = {
     from: optional('EMAIL_FROM', 'noreply@rentals.ng'),
   },
 
+  appUrl: optional('APP_URL', 'http://localhost:3000'),
   frontendUrl: optional('FRONTEND_URL', 'http://localhost:5173'),
 
   upload: {

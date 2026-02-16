@@ -20,6 +20,7 @@ import agreementRoutes from './modules/agreements/agreement.routes';
 import paymentRoutes from './modules/payments/payment.routes';
 import adminRoutes from './modules/admin/admin.routes';
 import agentRoutes from './modules/agents/agent.routes';
+import kycRoutes from './modules/kyc/kyc.routes';
 
 const app = express();
 
@@ -64,7 +65,10 @@ if (env.isDev) {
 }
 
 // ─── Static files (uploads) ─────────────────
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+app.use('/uploads', (_req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+}, express.static(path.join(process.cwd(), 'uploads')));
 
 // ─── Swagger Docs ───────────────────────────
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
@@ -89,6 +93,7 @@ app.use(`${env.apiPrefix}/agreements`, agreementRoutes);
 app.use(`${env.apiPrefix}/payments`, paymentRoutes);
 app.use(`${env.apiPrefix}/admin`, adminRoutes);
 app.use(`${env.apiPrefix}/agents`, agentRoutes);
+app.use(`${env.apiPrefix}/kyc`, kycRoutes);
 
 // ─── 404 ─────────────────────────────────────
 app.use((_req, res) => {

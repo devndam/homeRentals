@@ -54,6 +54,16 @@ export class AdminController {
     return sendPaginated(res, result);
   }
 
+  async getUserById(req: AuthenticatedRequest, res: Response) {
+    const user = await adminService.getUserById(req.params.id);
+    return sendSuccess(res, user);
+  }
+
+  async updateUser(req: AuthenticatedRequest, res: Response) {
+    const user = await adminService.updateUser(req.params.id, req.body);
+    return sendSuccess(res, user, 'User updated');
+  }
+
   async toggleUserActive(req: AuthenticatedRequest, res: Response) {
     const user = await adminService.toggleUserActive(req.params.id);
     return sendSuccess(res, user, `User ${user.isActive ? 'activated' : 'deactivated'}`);
@@ -68,6 +78,11 @@ export class AdminController {
   async getPendingProperties(req: AuthenticatedRequest, res: Response) {
     const result = await adminService.getPendingProperties(req.query as any);
     return sendPaginated(res, result);
+  }
+
+  async getPropertyById(req: AuthenticatedRequest, res: Response) {
+    const property = await adminService.getPropertyById(req.params.id);
+    return sendSuccess(res, property);
   }
 
   async getAllProperties(req: AuthenticatedRequest, res: Response) {

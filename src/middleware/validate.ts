@@ -41,7 +41,7 @@ export function validateQuery(DtoClass: any) {
       throw ApiError.badRequest('Invalid query parameters', formatted);
     }
 
-    req.query = instance as any;
+    Object.assign(req.query, instance);
     next();
   };
 }

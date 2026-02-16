@@ -66,6 +66,19 @@ export enum TransactionType {
   DEBIT = 'debit',
 }
 
+export enum KycDocumentType {
+  NATIONAL_ID = 'national_id',
+  INTERNATIONAL_PASSPORT = 'international_passport',
+  DRIVERS_LICENSE = 'drivers_license',
+  VOTERS_CARD = 'voters_card',
+}
+
+export enum KycStatus {
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
+}
+
 // ─── Admin Permissions ──────────────────────────────────
 export enum AdminPermission {
   // Admin management
@@ -94,6 +107,9 @@ export enum AdminPermission {
 
   // Disputes
   MANAGE_DISPUTES = 'manage_disputes',
+
+  // KYC
+  MANAGE_KYC = 'manage_kyc',
 }
 
 export const ALL_ADMIN_PERMISSIONS = Object.values(AdminPermission);
