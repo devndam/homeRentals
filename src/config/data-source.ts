@@ -11,6 +11,7 @@ const options: DataSourceOptions = {
   username: env.db.username,
   password: env.db.password,
   database: env.db.name,
+  ssl: env.isDev ? false : { rejectUnauthorized: false },
   synchronize: env.isDev, // auto-sync in dev only; use migrations in prod
   logging: env.isDev ? ['error', 'warn'] : ['error'],
   entities: [path.join(__dirname, '..', 'modules', '**', '*.entity.{ts,js}')],
