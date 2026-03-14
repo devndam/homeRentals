@@ -66,6 +66,7 @@ export class BookingService {
     const qb = bookingRepo()
       .createQueryBuilder('b')
       .leftJoinAndSelect('b.property', 'p')
+      .leftJoinAndSelect('p.images', 'img', 'img.isPrimary = true')
       .leftJoinAndSelect('b.tenant', 'tenant')
       .where('b.ownerId = :ownerId', { ownerId });
 
