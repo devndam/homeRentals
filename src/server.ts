@@ -1,8 +1,13 @@
 import 'reflect-metadata';
+import fs from 'fs';
+import path from 'path';
 import { AppDataSource } from './config/data-source';
 import { connectRedis } from './config/redis';
 import { env } from './config/env';
 import app from './app';
+
+// Ensure uploads directory exists
+fs.mkdirSync(path.join(process.cwd(), 'uploads'), { recursive: true });
 
 async function bootstrap() {
   try {
