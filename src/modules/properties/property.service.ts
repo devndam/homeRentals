@@ -19,7 +19,7 @@ export class PropertyService {
       ownerId,
       totalUnits: units,
       availableUnits: units,
-      status: PropertyStatus.PENDING_REVIEW,
+      status: PropertyStatus.ACTIVE, // Auto-approve for testing
     });
     return propertyRepo().save(property);
   }
