@@ -17,7 +17,7 @@ export class AgreementController {
   }
 
   async getMyAgreements(req: AuthenticatedRequest, res: Response) {
-    const result = await agreementService.getUserAgreements(req.user.sub, req.user.role, req.query as any);
+    const result = await agreementService.getUserAgreements(req.user.sub, req.query as any);
     return sendPaginated(res, result);
   }
 

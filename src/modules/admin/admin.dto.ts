@@ -1,7 +1,7 @@
 import {
   IsString, IsNotEmpty, IsEmail, IsArray, IsEnum, IsOptional, MinLength, Matches, IsBoolean,
 } from 'class-validator';
-import { AdminPermission, UserRole } from '../../types';
+import { AdminPermission } from '../../types';
 
 export class CreateAdminDto {
   @IsString()
@@ -61,9 +61,9 @@ export class UpdateUserDto {
   @IsOptional()
   phone?: string;
 
-  @IsEnum(UserRole, { message: 'Role must be a valid UserRole' })
+  @IsBoolean()
   @IsOptional()
-  role?: UserRole;
+  isPropertyOwner?: boolean;
 
   @IsBoolean()
   @IsOptional()

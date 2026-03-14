@@ -2,7 +2,7 @@ import { Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
 import { ApiError } from '../utils/api-error';
-import { AuthenticatedRequest, JwtPayload, UserRole, AdminPermission } from '../types';
+import { AuthenticatedRequest, JwtPayload, AdminPermission } from '../types';
 
 /**
  * Verifies JWT access token from Authorization header.
@@ -24,31 +24,24 @@ export function authenticate(req: AuthenticatedRequest, _res: Response, next: Ne
 }
 
 /**
- * Restricts access to users with specified roles.
+ * Restricts access to users with isPropertyOwner = true.
  */
-export function authorize(...roles: UserRole[]) {
+export function requirePropertyOwner() {
   return (req: AuthenticatedRequest, _res: Response, next: NextFunction) => {
-    if (!req.user) {
-      throw ApiError.unauthorized();
-    }
-    if (!roles.includes(req.user.role)) {
-      throw ApiError.forbidden('You do not have permission to access this resource');
+    if (!req.user || req.user.type !== 'user' || !req.user.isPropertyOwner) {
+      throw ApiError.forbidden('Property owner access required');
     }
     next();
   };
 }
 
 /**
- * Requires admin role + specific granular permission(s).
+ * Requires admin JWT + specific granular permission(s).
  * Super admins bypass all permission checks.
  */
 export function requirePermission(...required: AdminPermission[]) {
   return (req: AuthenticatedRequest, _res: Response, next: NextFunction) => {
-    if (!req.user) {
-      throw ApiError.unauthorized();
-    }
-
-    if (req.user.role !== UserRole.ADMIN) {
+    if (!req.user || req.user.type !== 'admin') {
       throw ApiError.forbidden('Admin access required');
     }
 
@@ -57,8 +50,8 @@ export function requirePermission(...required: AdminPermission[]) {
       return next();
     }
 
-    const userPerms = req.user.permissions || [];
-    const missing = required.filter((p) => !userPerms.includes(p));
+    const adminPerms = req.user.permissions || [];
+    const missing = required.filter((p) => !adminPerms.includes(p));
 
     if (missing.length > 0) {
       throw ApiError.forbidden(

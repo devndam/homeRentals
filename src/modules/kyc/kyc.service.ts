@@ -27,11 +27,16 @@ export class KycService {
     return kycRepo().save(doc);
   }
 
-  async getMySubmissions(userId: string): Promise<KycDocument[]> {
-    return kycRepo().find({
-      where: { userId },
-      order: { createdAt: 'DESC' },
-    });
+  async getMySubmissions(userId: string, query: KycListQueryDto): Promise<PaginatedResponse<KycDocument>> {
+    const qb = kycRepo()
+      .createQueryBuilder('k')
+      .where('k.userId = :userId', { userId });
+
+    if (query.status) {
+      qb.andWhere('k.status = :status', { status: query.status });
+    }
+
+    return paginate(qb, { ...query, sort: query.sort || 'createdAt', order: query.order || 'DESC' });
   }
 
   // ─── Admin methods ─────────────────────────

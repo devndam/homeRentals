@@ -2,22 +2,23 @@ import { AppDataSource } from '../../config/data-source';
 import { Property } from './property.entity';
 import { PropertyImage } from './property-image.entity';
 import { Favorite } from './favorite.entity';
-import { User } from '../users/user.entity';
 import { ApiError } from '../../utils/api-error';
-import { PaginatedResponse, PropertyStatus, UserRole } from '../../types';
+import { PaginatedResponse, PropertyStatus } from '../../types';
 import { CreatePropertyDto, UpdatePropertyDto, PropertyFilterDto } from './property.dto';
 import { paginate } from '../../utils/pagination';
 
 const propertyRepo = () => AppDataSource.getRepository(Property);
 const imageRepo = () => AppDataSource.getRepository(PropertyImage);
 const favoriteRepo = () => AppDataSource.getRepository(Favorite);
-const userRepo = () => AppDataSource.getRepository(User);
 
 export class PropertyService {
   async create(ownerId: string, dto: CreatePropertyDto): Promise<Property> {
+    const units = dto.totalUnits || 1;
     const property = propertyRepo().create({
       ...dto,
       ownerId,
+      totalUnits: units,
+      availableUnits: units,
       status: PropertyStatus.PENDING_REVIEW,
     });
     return propertyRepo().save(property);
@@ -46,10 +47,26 @@ export class PropertyService {
     if (filters.isFurnished !== undefined) qb.andWhere('p.isFurnished = :furnished', { furnished: filters.isFurnished });
     if (filters.isPetFriendly !== undefined) qb.andWhere('p.isPetFriendly = :pet', { pet: filters.isPetFriendly });
 
+    // Proximity search using Haversine formula
+    if (filters.latitude != null && filters.longitude != null) {
+      const radiusKm = filters.radius || 10;
+      qb.andWhere('p.latitude IS NOT NULL AND p.longitude IS NOT NULL');
+      qb.addSelect(
+        `(6371 * acos(cos(radians(:lat)) * cos(radians(p.latitude)) * cos(radians(p.longitude) - radians(:lng)) + sin(radians(:lat)) * sin(radians(p.latitude))))`,
+        'distance',
+      );
+      qb.setParameters({ lat: filters.latitude, lng: filters.longitude });
+      qb.andWhere(
+        `(6371 * acos(cos(radians(:lat)) * cos(radians(p.latitude)) * cos(radians(p.longitude) - radians(:lng)) + sin(radians(:lat)) * sin(radians(p.latitude)))) <= :radius`,
+        { radius: radiusKm },
+      );
+      qb.orderBy('distance', 'ASC');
+    }
+
     return paginate(qb, {
       page: filters.page,
       limit: filters.limit,
-      sort: filters.sort || 'createdAt',
+      sort: (filters.latitude != null && filters.longitude != null) ? undefined : (filters.sort || 'createdAt'),
       order: filters.order || 'DESC',
     });
   }
@@ -57,7 +74,7 @@ export class PropertyService {
   async findById(id: string): Promise<Property> {
     const property = await propertyRepo().findOne({
       where: { id },
-      relations: ['images', 'owner', 'agent'],
+      relations: ['images', 'owner'],
     });
     if (!property) throw ApiError.notFound('Property not found');
 
@@ -70,7 +87,6 @@ export class PropertyService {
     const qb = propertyRepo()
       .createQueryBuilder('p')
       .leftJoinAndSelect('p.images', 'img')
-      .leftJoinAndSelect('p.agent', 'agent')
       .where('p.ownerId = :ownerId', { ownerId });
 
     return paginate(qb, {
@@ -94,29 +110,6 @@ export class PropertyService {
     if (!property) throw ApiError.notFound('Property not found');
 
     await propertyRepo().remove(property);
-  }
-
-  // ─── Agent Assignment ─────────────────────────
-
-  async assignAgent(propertyId: string, ownerId: string, agentId: string): Promise<Property> {
-    const property = await propertyRepo().findOne({ where: { id: propertyId, ownerId } });
-    if (!property) throw ApiError.notFound('Property not found');
-
-    const agent = await userRepo().findOne({
-      where: { id: agentId, role: UserRole.AGENT, addedByOwnerId: ownerId },
-    });
-    if (!agent) throw ApiError.notFound('Agent not found or not your agent');
-
-    property.agentId = agentId;
-    return propertyRepo().save(property);
-  }
-
-  async removeAgent(propertyId: string, ownerId: string): Promise<Property> {
-    const property = await propertyRepo().findOne({ where: { id: propertyId, ownerId } });
-    if (!property) throw ApiError.notFound('Property not found');
-
-    property.agentId = undefined;
-    return propertyRepo().save(property);
   }
 
   // ─── Images ─────────────────────────────────

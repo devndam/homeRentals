@@ -4,14 +4,16 @@ import { Payment } from './payment.entity';
 import { User } from '../users/user.entity';
 import { ApiError } from '../../utils/api-error';
 import { PaymentStatus, PaginatedResponse, PaginationQuery } from '../../types';
-import { InitiatePaymentDto } from './payment.dto';
+import { InitiatePaymentDto, PaymentFilterDto } from './payment.dto';
 import { PaystackService } from './paystack.service';
 import { env } from '../../config/env';
 import { paginate } from '../../utils/pagination';
+import { WalletService } from '../wallet/wallet.service';
 
 const paymentRepo = () => AppDataSource.getRepository(Payment);
 const userRepo = () => AppDataSource.getRepository(User);
 const paystackService = new PaystackService();
+const walletService = new WalletService();
 
 export class PaymentService {
   async initiate(userId: string, dto: InitiatePaymentDto) {
@@ -105,6 +107,11 @@ export class PaymentService {
       }
 
       await paymentRepo().save(payment);
+
+      if (payment.status === PaymentStatus.SUCCESS) {
+        await walletService.creditOwnerWallet(payment);
+      }
+
       return payment;
     } catch (err: any) {
       throw ApiError.badRequest(`Verification failed: ${err.message}`);
@@ -123,17 +130,32 @@ export class PaymentService {
         payment.status = PaymentStatus.SUCCESS;
         payment.paystackMetadata = data;
         await paymentRepo().save(payment);
+
+        await walletService.creditOwnerWallet(payment);
       }
     }
   }
 
-  async getUserPayments(userId: string, query: PaginationQuery): Promise<PaginatedResponse<Payment>> {
+  async getUserPayments(userId: string, filters: PaymentFilterDto): Promise<PaginatedResponse<Payment>> {
     const qb = paymentRepo()
       .createQueryBuilder('p')
       .leftJoinAndSelect('p.property', 'prop')
       .where('p.userId = :userId', { userId });
 
-    return paginate(qb, { ...query, sort: query.sort || 'createdAt', order: query.order || 'DESC' });
+    if (filters.status) {
+      qb.andWhere('p.status = :status', { status: filters.status });
+    }
+    if (filters.type) {
+      qb.andWhere('p.type = :type', { type: filters.type });
+    }
+    if (filters.fromDate) {
+      qb.andWhere('p.createdAt >= :fromDate', { fromDate: filters.fromDate });
+    }
+    if (filters.toDate) {
+      qb.andWhere('p.createdAt <= :toDate', { toDate: filters.toDate });
+    }
+
+    return paginate(qb, { page: filters.page, limit: filters.limit, sort: filters.sort || 'createdAt', order: filters.order || 'DESC' });
   }
 
   async getPaymentById(id: string, userId: string): Promise<Payment> {

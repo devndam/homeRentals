@@ -32,12 +32,6 @@ export class Property {
   @Column({ default: 'yearly' })
   pricePeriod!: string; // yearly, monthly, daily
 
-  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
-  cautionFee?: number;
-
-  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
-  agencyFee?: number;
-
   // ─── Location ─────────────────────────────
   @Index()
   @Column({ length: 255 })
@@ -72,6 +66,12 @@ export class Property {
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   areaSqm?: number;
 
+  @Column({ type: 'int', default: 1 })
+  totalUnits!: number;
+
+  @Column({ type: 'int', default: 1 })
+  availableUnits!: number;
+
   @Column({ type: 'jsonb', default: [] })
   amenities!: string[];
 
@@ -96,14 +96,6 @@ export class Property {
 
   @Column({ type: 'timestamp', nullable: true })
   availableFrom?: Date;
-
-  // ─── Agent Assignment ─────────────────────
-  @Column({ type: 'uuid', nullable: true })
-  agentId?: string;
-
-  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
-  @JoinColumn({ name: 'agentId' })
-  agent?: User;
 
   // ─── Relations ────────────────────────────
   @Column({ type: 'uuid' })

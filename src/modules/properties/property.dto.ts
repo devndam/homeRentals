@@ -26,16 +26,6 @@ export class CreatePropertyDto {
   @IsOptional()
   pricePeriod?: string;
 
-  @IsNumber()
-  @IsOptional()
-  @Type(() => Number)
-  cautionFee?: number;
-
-  @IsNumber()
-  @IsOptional()
-  @Type(() => Number)
-  agencyFee?: number;
-
   @IsString()
   @IsNotEmpty()
   address!: string;
@@ -77,6 +67,12 @@ export class CreatePropertyDto {
   @IsOptional()
   @Type(() => Number)
   areaSqm?: number;
+
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  @Type(() => Number)
+  totalUnits?: number;
 
   @IsArray()
   @IsOptional()
@@ -155,6 +151,19 @@ export class PropertyFilterDto {
   @IsOptional()
   @Transform(({ value }) => value === 'true' || value === true)
   isPetFriendly?: boolean;
+
+  @IsOptional()
+  @Type(() => Number)
+  latitude?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  longitude?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @Min(1)
+  radius?: number; // km, default 10
 
   @IsOptional()
   @IsString()

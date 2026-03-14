@@ -1,5 +1,4 @@
-import { IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString, MinLength, Matches } from 'class-validator';
-import { UserRole } from '../../types';
+import { IsBoolean, IsEmail, IsNotEmpty, IsOptional, IsString, MinLength, Matches } from 'class-validator';
 
 export class RegisterDto {
   @IsString()
@@ -21,9 +20,9 @@ export class RegisterDto {
   @MinLength(8, { message: 'Password must be at least 8 characters' })
   password!: string;
 
-  @IsEnum(UserRole, { message: 'Role must be tenant or property_owner' })
+  @IsBoolean()
   @IsOptional()
-  role?: UserRole;
+  isPropertyOwner?: boolean;
 }
 
 export class LoginDto {
@@ -64,4 +63,19 @@ export class ChangePasswordDto {
   @IsString()
   @MinLength(8)
   newPassword!: string;
+}
+
+export class VerifyEmailDto {
+  @IsEmail()
+  email!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^\d{6}$/, { message: 'OTP must be a 6-digit number' })
+  otp!: string;
+}
+
+export class ResendVerificationDto {
+  @IsEmail()
+  email!: string;
 }

@@ -1,13 +1,6 @@
 import { Request } from 'express';
 
 // ─── Enums ───────────────────────────────────────────────
-export enum UserRole {
-  TENANT = 'tenant',
-  PROPERTY_OWNER = 'property_owner',
-  AGENT = 'agent',
-  ADMIN = 'admin',
-}
-
 export enum PropertyStatus {
   DRAFT = 'draft',
   PENDING_REVIEW = 'pending_review',
@@ -79,6 +72,13 @@ export enum KycStatus {
   REJECTED = 'rejected',
 }
 
+export enum WithdrawalStatus {
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
+  COMPLETED = 'completed',
+}
+
 // ─── Admin Permissions ──────────────────────────────────
 export enum AdminPermission {
   // Admin management
@@ -110,20 +110,33 @@ export enum AdminPermission {
 
   // KYC
   MANAGE_KYC = 'manage_kyc',
+
+  // Wallets
+  MANAGE_WALLETS = 'manage_wallets',
 }
 
 export const ALL_ADMIN_PERMISSIONS = Object.values(AdminPermission);
 
 // ─── Auth ────────────────────────────────────────────────
-export interface JwtPayload {
-  sub: string;        // user id
+interface BaseJwtPayload {
+  sub: string;
   email: string;
-  role: UserRole;
-  permissions?: AdminPermission[];
-  isSuperAdmin?: boolean;
   iat?: number;
   exp?: number;
 }
+
+export interface UserJwtPayload extends BaseJwtPayload {
+  type: 'user';
+  isPropertyOwner: boolean;
+}
+
+export interface AdminJwtPayload extends BaseJwtPayload {
+  type: 'admin';
+  isSuperAdmin: boolean;
+  permissions: AdminPermission[];
+}
+
+export type JwtPayload = UserJwtPayload | AdminJwtPayload;
 
 export interface AuthenticatedRequest extends Request {
   user: JwtPayload;

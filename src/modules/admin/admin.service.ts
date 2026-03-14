@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { AppDataSource } from '../../config/data-source';
+import { Admin } from './admin.entity';
 import { User } from '../users/user.entity';
 import { Property } from '../properties/property.entity';
 import { Payment } from '../payments/payment.entity';
@@ -8,11 +9,12 @@ import { Agreement } from '../agreements/agreement.entity';
 import { ApiError } from '../../utils/api-error';
 import {
   AdminPermission, ALL_ADMIN_PERMISSIONS,
-  PaginatedResponse, PaginationQuery, PropertyStatus, PaymentStatus, UserRole,
+  PaginatedResponse, PaginationQuery, PropertyStatus, PaymentStatus,
 } from '../../types';
 import { CreateAdminDto, UpdateAdminPermissionsDto, UpdateUserDto } from './admin.dto';
 import { paginate } from '../../utils/pagination';
 
+const adminRepo = () => AppDataSource.getRepository(Admin);
 const userRepo = () => AppDataSource.getRepository(User);
 const propertyRepo = () => AppDataSource.getRepository(Property);
 const paymentRepo = () => AppDataSource.getRepository(Payment);
@@ -24,8 +26,8 @@ export class AdminService {
   // ADMIN MEMBER MANAGEMENT
   // ═══════════════════════════════════════════════
 
-  async createAdmin(creatorId: string, dto: CreateAdminDto): Promise<User> {
-    const existing = await userRepo().findOne({
+  async createAdmin(creatorId: string, dto: CreateAdminDto): Promise<Admin> {
+    const existing = await adminRepo().findOne({
       where: [{ email: dto.email }, { phone: dto.phone }],
     });
 
@@ -39,32 +41,28 @@ export class AdminService {
 
     const hashedPassword = await bcrypt.hash(dto.password, 12);
 
-    const admin = userRepo().create({
+    const admin = adminRepo().create({
       firstName: dto.firstName,
       lastName: dto.lastName,
       email: dto.email.toLowerCase().trim(),
       phone: dto.phone,
       password: hashedPassword,
-      role: UserRole.ADMIN,
       permissions: dto.permissions,
       isSuperAdmin: dto.isSuperAdmin || false,
-      emailVerified: true,
       addedByAdminId: creatorId,
     });
 
-    await userRepo().save(admin);
+    await adminRepo().save(admin);
 
     return this.sanitizeAdmin(admin);
   }
 
-  async getAdminMembers(query: PaginationQuery & { search?: string }): Promise<PaginatedResponse<User>> {
-    const qb = userRepo()
-      .createQueryBuilder('u')
-      .where('u.role = :role', { role: UserRole.ADMIN });
+  async getAdminMembers(query: PaginationQuery & { search?: string }): Promise<PaginatedResponse<Admin>> {
+    const qb = adminRepo().createQueryBuilder('a');
 
     if ((query as any).search) {
       qb.andWhere(
-        '(u.firstName ILIKE :s OR u.lastName ILIKE :s OR u.email ILIKE :s)',
+        '(a.firstName ILIKE :s OR a.lastName ILIKE :s OR a.email ILIKE :s)',
         { s: `%${(query as any).search}%` },
       );
     }
@@ -72,18 +70,14 @@ export class AdminService {
     return paginate(qb, { ...query, sort: query.sort || 'createdAt', order: query.order || 'DESC' });
   }
 
-  async getAdminById(adminId: string): Promise<User> {
-    const admin = await userRepo().findOne({
-      where: { id: adminId, role: UserRole.ADMIN },
-    });
+  async getAdminById(adminId: string): Promise<Admin> {
+    const admin = await adminRepo().findOne({ where: { id: adminId } });
     if (!admin) throw ApiError.notFound('Admin not found');
     return admin;
   }
 
-  async updatePermissions(adminId: string, dto: UpdateAdminPermissionsDto): Promise<User> {
-    const admin = await userRepo().findOne({
-      where: { id: adminId, role: UserRole.ADMIN },
-    });
+  async updatePermissions(adminId: string, dto: UpdateAdminPermissionsDto): Promise<Admin> {
+    const admin = await adminRepo().findOne({ where: { id: adminId } });
     if (!admin) throw ApiError.notFound('Admin not found');
 
     if (admin.isSuperAdmin) {
@@ -91,23 +85,20 @@ export class AdminService {
     }
 
     admin.permissions = dto.permissions;
-    await userRepo().save(admin);
+    await adminRepo().save(admin);
 
     return admin;
   }
 
-  async toggleSuperAdmin(adminId: string, isSuperAdmin: boolean): Promise<User> {
-    const admin = await userRepo().findOne({
-      where: { id: adminId, role: UserRole.ADMIN },
-    });
+  async toggleSuperAdmin(adminId: string, isSuperAdmin: boolean): Promise<Admin> {
+    const admin = await adminRepo().findOne({ where: { id: adminId } });
     if (!admin) throw ApiError.notFound('Admin not found');
 
     admin.isSuperAdmin = isSuperAdmin;
-    // Super admins don't need explicit permissions — they have all
     if (isSuperAdmin) {
       admin.permissions = [];
     }
-    await userRepo().save(admin);
+    await adminRepo().save(admin);
 
     return admin;
   }
@@ -117,20 +108,14 @@ export class AdminService {
       throw ApiError.badRequest('You cannot remove yourself');
     }
 
-    const admin = await userRepo().findOne({
-      where: { id: adminId, role: UserRole.ADMIN },
-    });
+    const admin = await adminRepo().findOne({ where: { id: adminId } });
     if (!admin) throw ApiError.notFound('Admin not found');
 
     if (admin.isSuperAdmin) {
       throw ApiError.badRequest('Cannot remove a super admin');
     }
 
-    // Downgrade to tenant instead of deleting
-    admin.role = UserRole.TENANT;
-    admin.permissions = [];
-    admin.isSuperAdmin = false;
-    await userRepo().save(admin);
+    await adminRepo().remove(admin);
   }
 
   async listPermissions(): Promise<{ permission: string; description: string }[]> {
@@ -149,6 +134,7 @@ export class AdminService {
       [AdminPermission.VIEW_DASHBOARD]: 'View dashboard analytics',
       [AdminPermission.MANAGE_DISPUTES]: 'Manage and resolve disputes',
       [AdminPermission.MANAGE_KYC]: 'Review, approve, and reject KYC submissions',
+      [AdminPermission.MANAGE_WALLETS]: 'View wallets, approve or reject withdrawal requests',
     };
 
     return ALL_ADMIN_PERMISSIONS.map((p) => ({
@@ -162,12 +148,10 @@ export class AdminService {
   // ═══════════════════════════════════════════════
 
   async getDashboardStats() {
-    const [totalUsers, totalOwners, totalTenants, totalAgents, totalAdmins] = await Promise.all([
+    const [totalUsers, totalOwners, totalAdmins] = await Promise.all([
       userRepo().count(),
-      userRepo().count({ where: { role: UserRole.PROPERTY_OWNER } }),
-      userRepo().count({ where: { role: UserRole.TENANT } }),
-      userRepo().count({ where: { role: UserRole.AGENT } }),
-      userRepo().count({ where: { role: UserRole.ADMIN } }),
+      userRepo().count({ where: { isPropertyOwner: true } }),
+      adminRepo().count(),
     ]);
 
     const [totalProperties, activeProperties, pendingProperties] = await Promise.all([
@@ -187,7 +171,7 @@ export class AdminService {
       .getRawOne();
 
     return {
-      users: { total: totalUsers, propertyOwners: totalOwners, tenants: totalTenants, agents: totalAgents, admins: totalAdmins },
+      users: { total: totalUsers, propertyOwners: totalOwners, admins: totalAdmins },
       properties: { total: totalProperties, active: activeProperties, pendingReview: pendingProperties },
       bookings: totalBookings,
       agreements: totalAgreements,
@@ -198,11 +182,10 @@ export class AdminService {
     };
   }
 
-  async getUsers(query: PaginationQuery & { role?: UserRole; search?: string }): Promise<PaginatedResponse<User>> {
-    const qb = userRepo().createQueryBuilder('u')
-      .where('u.role != :adminRole', { adminRole: UserRole.ADMIN });
+  async getUsers(query: PaginationQuery & { isPropertyOwner?: boolean; search?: string }): Promise<PaginatedResponse<User>> {
+    const qb = userRepo().createQueryBuilder('u');
 
-    if (query.role) qb.andWhere('u.role = :role', { role: query.role });
+    if (query.isPropertyOwner !== undefined) qb.andWhere('u.isPropertyOwner = :isPropertyOwner', { isPropertyOwner: query.isPropertyOwner });
     if ((query as any).search) {
       qb.andWhere(
         '(u.firstName ILIKE :s OR u.lastName ILIKE :s OR u.email ILIKE :s)',
@@ -222,10 +205,6 @@ export class AdminService {
   async updateUser(userId: string, dto: UpdateUserDto): Promise<User> {
     const user = await userRepo().findOne({ where: { id: userId } });
     if (!user) throw ApiError.notFound('User not found');
-
-    if (user.role === UserRole.ADMIN) {
-      throw ApiError.badRequest('Cannot update admin users from this endpoint');
-    }
 
     if (dto.email && dto.email !== user.email) {
       const existing = await userRepo().findOne({ where: { email: dto.email } });
@@ -310,7 +289,7 @@ export class AdminService {
   async getPropertyById(propertyId: string): Promise<Property> {
     const property = await propertyRepo().findOne({
       where: { id: propertyId },
-      relations: ['images', 'owner', 'agent'],
+      relations: ['images', 'owner'],
     });
     if (!property) throw ApiError.notFound('Property not found');
     return property;
@@ -330,8 +309,8 @@ export class AdminService {
   }
 
   // ─── Helpers ──────────────────────────────────
-  private sanitizeAdmin(user: User): User {
-    const sanitized = { ...user };
+  private sanitizeAdmin(admin: Admin): Admin {
+    const sanitized = { ...admin };
     delete (sanitized as any).password;
     delete (sanitized as any).passwordResetToken;
     delete (sanitized as any).passwordResetExpires;

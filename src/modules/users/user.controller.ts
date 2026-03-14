@@ -26,6 +26,17 @@ export class UserController {
     return sendSuccess(res, user, 'Preferences updated');
   }
 
+  async becomePropertyOwner(req: AuthenticatedRequest, res: Response) {
+    const user = await userService.becomePropertyOwner(req.user.sub);
+    return sendSuccess(res, user, 'You are now a property owner');
+  }
+
+  async getDashboard(req: AuthenticatedRequest, res: Response) {
+    const isOwner = req.user.type === 'user' && req.user.isPropertyOwner;
+    const stats = await userService.getDashboardStats(req.user.sub, isOwner);
+    return sendSuccess(res, stats);
+  }
+
   async getOwnerProfile(req: AuthenticatedRequest, res: Response) {
     const profile = await userService.getOwnerPublicProfile(req.params.id);
     return sendSuccess(res, profile);

@@ -19,8 +19,8 @@ import bookingRoutes from './modules/bookings/booking.routes';
 import agreementRoutes from './modules/agreements/agreement.routes';
 import paymentRoutes from './modules/payments/payment.routes';
 import adminRoutes from './modules/admin/admin.routes';
-import agentRoutes from './modules/agents/agent.routes';
 import kycRoutes from './modules/kyc/kyc.routes';
+import walletRoutes from './modules/wallet/wallet.routes';
 
 const app = express();
 
@@ -92,8 +92,8 @@ app.use(`${env.apiPrefix}/bookings`, bookingRoutes);
 app.use(`${env.apiPrefix}/agreements`, agreementRoutes);
 app.use(`${env.apiPrefix}/payments`, paymentRoutes);
 app.use(`${env.apiPrefix}/admin`, adminRoutes);
-app.use(`${env.apiPrefix}/agents`, agentRoutes);
 app.use(`${env.apiPrefix}/kyc`, kycRoutes);
+app.use(`${env.apiPrefix}/wallet`, walletRoutes);
 
 // ─── 404 ─────────────────────────────────────
 app.use((_req, res) => {

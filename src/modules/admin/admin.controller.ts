@@ -1,11 +1,31 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { AdminService } from './admin.service';
+import { AdminAuthService } from './admin-auth.service';
+import { WalletService } from '../wallet/wallet.service';
 import { sendSuccess, sendCreated, sendPaginated } from '../../utils/response';
 import { AuthenticatedRequest } from '../../types';
 
 const adminService = new AdminService();
+const adminAuthService = new AdminAuthService();
+const walletService = new WalletService();
 
 export class AdminController {
+  // ─── Auth ───────────────────────────────────
+  async login(req: Request, res: Response) {
+    const result = await adminAuthService.login(req.body);
+    return sendSuccess(res, result, 'Login successful');
+  }
+
+  async refreshToken(req: Request, res: Response) {
+    const result = await adminAuthService.refreshToken(req.body.refreshToken);
+    return sendSuccess(res, result, 'Token refreshed');
+  }
+
+  async logout(req: Request, res: Response) {
+    const result = await adminAuthService.logout(req.body.refreshToken);
+    return sendSuccess(res, result);
+  }
+
   // ─── Admin Member Management ──────────────
   async createAdmin(req: AuthenticatedRequest, res: Response) {
     const admin = await adminService.createAdmin(req.user.sub, req.body);
@@ -109,5 +129,31 @@ export class AdminController {
   async getAllPayments(req: AuthenticatedRequest, res: Response) {
     const result = await adminService.getAllPayments(req.query as any);
     return sendPaginated(res, result);
+  }
+
+  // ─── Wallets ──────────────────────────────
+  async getAllWallets(req: AuthenticatedRequest, res: Response) {
+    const result = await walletService.getAllWallets(req.query as any);
+    return sendPaginated(res, result);
+  }
+
+  async getWalletTransactions(req: AuthenticatedRequest, res: Response) {
+    const result = await walletService.getWalletTransactions(req.params.id, req.query as any);
+    return sendPaginated(res, result);
+  }
+
+  async getAllWithdrawals(req: AuthenticatedRequest, res: Response) {
+    const result = await walletService.getAllWithdrawals(req.query as any);
+    return sendPaginated(res, result);
+  }
+
+  async approveWithdrawal(req: AuthenticatedRequest, res: Response) {
+    const txn = await walletService.approveWithdrawal(req.params.id, req.user.sub);
+    return sendSuccess(res, txn, 'Withdrawal approved');
+  }
+
+  async rejectWithdrawal(req: AuthenticatedRequest, res: Response) {
+    const txn = await walletService.rejectWithdrawal(req.params.id, req.user.sub, req.body.reason);
+    return sendSuccess(res, txn, 'Withdrawal rejected');
   }
 }

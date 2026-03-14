@@ -6,6 +6,7 @@ import { asyncHandler } from '../../utils/async-handler';
 import {
   RegisterDto, LoginDto, ForgotPasswordDto,
   ResetPasswordDto, RefreshTokenDto, ChangePasswordDto,
+  VerifyEmailDto, ResendVerificationDto,
 } from './auth.dto';
 
 const router = Router();
@@ -16,6 +17,8 @@ router.post('/login', validateBody(LoginDto), asyncHandler(ctrl.login));
 router.post('/refresh', validateBody(RefreshTokenDto), asyncHandler(ctrl.refreshToken));
 router.post('/forgot-password', validateBody(ForgotPasswordDto), asyncHandler(ctrl.forgotPassword));
 router.post('/reset-password', validateBody(ResetPasswordDto), asyncHandler(ctrl.resetPassword));
+router.post('/verify-email', validateBody(VerifyEmailDto), asyncHandler(ctrl.verifyEmail));
+router.post('/resend-verification', validateBody(ResendVerificationDto), asyncHandler(ctrl.resendVerification));
 router.post('/change-password', authenticate as any, validateBody(ChangePasswordDto), asyncHandler(ctrl.changePassword as any));
 router.post('/logout', asyncHandler(ctrl.logout));
 router.get('/me', authenticate as any, asyncHandler(ctrl.me as any));

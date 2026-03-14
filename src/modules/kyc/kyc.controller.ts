@@ -15,8 +15,8 @@ export class KycController {
   }
 
   async getMySubmissions(req: AuthenticatedRequest, res: Response) {
-    const docs = await kycService.getMySubmissions(req.user.sub);
-    return sendSuccess(res, docs);
+    const result = await kycService.getMySubmissions(req.user.sub, req.query as any);
+    return sendPaginated(res, result);
   }
 
   // ─── Admin methods ─────────────────────────

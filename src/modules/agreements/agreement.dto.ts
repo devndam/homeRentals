@@ -1,5 +1,6 @@
-import { IsString, IsNotEmpty, IsOptional, IsDateString, IsNumber, IsUUID, Min } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsDateString, IsNumber, IsUUID, Min, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
+import { AgreementStatus } from '../../types';
 
 export class CreateAgreementDto {
   @IsUUID()
@@ -37,4 +38,30 @@ export class SignAgreementDto {
   @IsString()
   @IsNotEmpty()
   signature!: string; // base64 encoded signature image
+}
+
+export class AgreementFilterDto {
+  @IsOptional()
+  @Type(() => Number)
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  limit?: number;
+
+  @IsOptional()
+  @IsEnum(AgreementStatus)
+  status?: AgreementStatus;
+
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @IsOptional()
+  @IsString()
+  sort?: string;
+
+  @IsOptional()
+  @IsString()
+  order?: 'ASC' | 'DESC';
 }

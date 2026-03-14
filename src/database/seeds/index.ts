@@ -2,31 +2,29 @@ import 'reflect-metadata';
 import bcrypt from 'bcryptjs';
 import { AppDataSource } from '../../config/data-source';
 import { User } from '../../modules/users/user.entity';
-import { UserRole } from '../../types';
+import { Admin } from '../../modules/admin/admin.entity';
+import { Wallet } from '../../modules/wallet/wallet.entity';
 
 async function seed() {
   await AppDataSource.initialize();
   console.log('[Seed] Database connected');
 
+  const adminRepo = AppDataSource.getRepository(Admin);
   const userRepo = AppDataSource.getRepository(User);
 
-  // Create admin user
-  const adminExists = await userRepo.findOne({ where: { email: 'admin@rentals.ng' } });
+  // Create super admin
+  const adminExists = await adminRepo.findOne({ where: { email: 'admin@rentals.ng' } });
   if (!adminExists) {
-    const admin = userRepo.create({
+    const admin = adminRepo.create({
       firstName: 'Platform',
       lastName: 'Admin',
       email: 'admin@rentals.ng',
       phone: '+2340000000000',
       password: await bcrypt.hash('Admin@123456', 12),
-      role: UserRole.ADMIN,
       isSuperAdmin: true,
       permissions: [],
-      emailVerified: true,
-      phoneVerified: true,
-      identityVerified: true,
     });
-    await userRepo.save(admin);
+    await adminRepo.save(admin);
     console.log('[Seed] Super Admin created: admin@rentals.ng / Admin@123456');
   }
 
@@ -39,11 +37,16 @@ async function seed() {
       email: 'owner@test.com',
       phone: '+2348011111111',
       password: await bcrypt.hash('Password@123', 12),
-      role: UserRole.PROPERTY_OWNER,
+      isPropertyOwner: true,
       emailVerified: true,
     });
     await userRepo.save(owner);
-    console.log('[Seed] Property Owner created: owner@test.com / Password@123');
+
+    const walletRepo = AppDataSource.getRepository(Wallet);
+    const wallet = walletRepo.create({ userId: owner.id });
+    await walletRepo.save(wallet);
+
+    console.log('[Seed] Property Owner created: owner@test.com / Password@123 (with wallet)');
   }
 
   // Create sample tenant
@@ -55,7 +58,6 @@ async function seed() {
       email: 'tenant@test.com',
       phone: '+2348022222222',
       password: await bcrypt.hash('Password@123', 12),
-      role: UserRole.TENANT,
       emailVerified: true,
     });
     await userRepo.save(tenant);

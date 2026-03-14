@@ -19,7 +19,7 @@ export const swaggerDocument = {
     { name: 'Agreements', description: 'Rental agreements & signing' },
     { name: 'Payments', description: 'Paystack payments & webhooks' },
     { name: 'Admin', description: 'Admin dashboard & moderation' },
-    { name: 'Agents', description: 'Agent management by property owners' },
+    { name: 'Wallet', description: 'Property owner wallet & withdrawals' },
   ],
   components: {
     securitySchemes: {
@@ -74,7 +74,7 @@ export const swaggerDocument = {
           email: { type: 'string', format: 'email', example: 'chinedu@example.com' },
           phone: { type: 'string', example: '+2348012345678' },
           password: { type: 'string', minLength: 8, example: 'SecurePass123' },
-          role: { type: 'string', enum: ['tenant', 'property_owner'], default: 'tenant' },
+          isPropertyOwner: { type: 'boolean', default: false, description: 'Set to true to register as a property owner' },
         },
       },
       LoginRequest: {
@@ -140,7 +140,7 @@ export const swaggerDocument = {
           lastName: { type: 'string' },
           email: { type: 'string' },
           phone: { type: 'string' },
-          role: { type: 'string', enum: ['tenant', 'property_owner', 'agent', 'admin'] },
+          isPropertyOwner: { type: 'boolean' },
           avatarUrl: { type: 'string', nullable: true },
           emailVerified: { type: 'boolean' },
           identityVerified: { type: 'boolean' },
@@ -186,8 +186,6 @@ export const swaggerDocument = {
           status: { type: 'string', enum: ['draft', 'pending_review', 'active', 'rented', 'suspended', 'archived'] },
           price: { type: 'number' },
           pricePeriod: { type: 'string', enum: ['yearly', 'monthly', 'daily'] },
-          cautionFee: { type: 'number', nullable: true },
-          agencyFee: { type: 'number', nullable: true },
           address: { type: 'string' },
           city: { type: 'string' },
           state: { type: 'string' },
@@ -203,7 +201,6 @@ export const swaggerDocument = {
           viewCount: { type: 'integer' },
           images: { type: 'array', items: { $ref: '#/components/schemas/PropertyImage' } },
           ownerId: { type: 'string', format: 'uuid' },
-          agentId: { type: 'string', format: 'uuid', nullable: true },
           createdAt: { type: 'string', format: 'date-time' },
         },
       },
@@ -226,8 +223,6 @@ export const swaggerDocument = {
           type: { type: 'string', enum: ['apartment', 'house', 'duplex', 'flat', 'self_contain', 'room', 'shop', 'office', 'land'] },
           price: { type: 'number', example: 2500000 },
           pricePeriod: { type: 'string', enum: ['yearly', 'monthly', 'daily'], default: 'yearly' },
-          cautionFee: { type: 'number', example: 500000 },
-          agencyFee: { type: 'number', example: 250000 },
           address: { type: 'string', example: '12 Admiralty Way' },
           city: { type: 'string', example: 'Lekki' },
           state: { type: 'string', example: 'Lagos' },
@@ -254,7 +249,6 @@ export const swaggerDocument = {
           tenantId: { type: 'string', format: 'uuid' },
           propertyId: { type: 'string', format: 'uuid' },
           ownerId: { type: 'string', format: 'uuid' },
-          agentId: { type: 'string', format: 'uuid', nullable: true },
           proposedDate: { type: 'string', format: 'date-time' },
           inspectionDate: { type: 'string', format: 'date-time', nullable: true },
           message: { type: 'string', nullable: true },
@@ -379,7 +373,7 @@ export const swaggerDocument = {
           password: { type: 'string', minLength: 8, example: 'AdminPass@123' },
           permissions: {
             type: 'array',
-            items: { type: 'string', enum: ['manage_admins', 'view_users', 'toggle_user_status', 'verify_user', 'view_properties', 'approve_property', 'reject_property', 'suspend_property', 'view_payments', 'process_refund', 'view_agreements', 'view_dashboard', 'manage_disputes'] },
+            items: { type: 'string', enum: ['manage_admins', 'view_users', 'toggle_user_status', 'verify_user', 'view_properties', 'approve_property', 'reject_property', 'suspend_property', 'view_payments', 'process_refund', 'view_agreements', 'view_dashboard', 'manage_disputes', 'manage_kyc', 'manage_wallets'] },
             example: ['view_dashboard', 'view_users', 'view_properties', 'approve_property'],
           },
           isSuperAdmin: { type: 'boolean', default: false },
@@ -391,11 +385,49 @@ export const swaggerDocument = {
         properties: {
           permissions: {
             type: 'array',
-            items: { type: 'string', enum: ['manage_admins', 'view_users', 'toggle_user_status', 'verify_user', 'view_properties', 'approve_property', 'reject_property', 'suspend_property', 'view_payments', 'process_refund', 'view_agreements', 'view_dashboard', 'manage_disputes'] },
+            items: { type: 'string', enum: ['manage_admins', 'view_users', 'toggle_user_status', 'verify_user', 'view_properties', 'approve_property', 'reject_property', 'suspend_property', 'view_payments', 'process_refund', 'view_agreements', 'view_dashboard', 'manage_disputes', 'manage_kyc', 'manage_wallets'] },
             example: ['view_dashboard', 'view_users', 'view_properties'],
           },
         },
       },
+      // ─── Wallet ─────────────────────────────
+      Wallet: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          userId: { type: 'string', format: 'uuid' },
+          balance: { type: 'number', example: 450000 },
+          totalEarned: { type: 'number', example: 750000 },
+          totalWithdrawn: { type: 'number', example: 300000 },
+          createdAt: { type: 'string', format: 'date-time' },
+          updatedAt: { type: 'string', format: 'date-time' },
+        },
+      },
+      WalletTransaction: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          walletId: { type: 'string', format: 'uuid' },
+          type: { type: 'string', enum: ['credit', 'debit'] },
+          amount: { type: 'number', example: 237500 },
+          reference: { type: 'string', example: 'WTX-A1B2C3D4-1710000000000' },
+          description: { type: 'string' },
+          relatedPaymentId: { type: 'string', format: 'uuid', nullable: true },
+          balanceAfter: { type: 'number' },
+          status: { type: 'string', enum: ['pending', 'approved', 'rejected', 'completed'] },
+          rejectionReason: { type: 'string', nullable: true },
+          createdAt: { type: 'string', format: 'date-time' },
+        },
+      },
+      RequestWithdrawalRequest: {
+        type: 'object',
+        required: ['amount'],
+        properties: {
+          amount: { type: 'number', minimum: 1000, example: 100000 },
+          description: { type: 'string', example: 'Monthly withdrawal' },
+        },
+      },
+
       DashboardStats: {
         type: 'object',
         properties: {
@@ -404,8 +436,7 @@ export const swaggerDocument = {
             properties: {
               total: { type: 'integer' },
               propertyOwners: { type: 'integer' },
-              tenants: { type: 'integer' },
-              agents: { type: 'integer' },
+              admins: { type: 'integer' },
             },
           },
           properties: {
@@ -546,7 +577,7 @@ export const swaggerDocument = {
     '/users/preferences': {
       put: {
         tags: ['Users'],
-        summary: 'Update search preferences (tenant only)',
+        summary: 'Update search preferences',
         security: [{ BearerAuth: [] }],
         requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/UpdatePreferencesRequest' } } } },
         responses: { 200: { description: 'Preferences updated' } },
@@ -683,37 +714,11 @@ export const swaggerDocument = {
       },
     },
 
-    '/properties/{id}/assign-agent': {
-      patch: {
-        tags: ['Properties'],
-        summary: 'Assign an agent to a property',
-        security: [{ BearerAuth: [] }],
-        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
-        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['agentId'], properties: { agentId: { type: 'string', format: 'uuid' } } } } } },
-        responses: {
-          200: { description: 'Agent assigned to property' },
-          404: { description: 'Property or agent not found' },
-        },
-      },
-    },
-    '/properties/{id}/remove-agent': {
-      patch: {
-        tags: ['Properties'],
-        summary: 'Remove agent from a property',
-        security: [{ BearerAuth: [] }],
-        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
-        responses: {
-          200: { description: 'Agent removed from property' },
-          404: { description: 'Property not found' },
-        },
-      },
-    },
-
     // ═══ BOOKINGS ═══════════════════════════════
     '/bookings': {
       post: {
         tags: ['Bookings'],
-        summary: 'Request a property inspection (tenant)',
+        summary: 'Request a property inspection',
         security: [{ BearerAuth: [] }],
         requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/CreateBookingRequest' } } } },
         responses: {
@@ -725,7 +730,7 @@ export const swaggerDocument = {
     '/bookings/tenant': {
       get: {
         tags: ['Bookings'],
-        summary: 'Get my bookings (tenant)',
+        summary: 'Get my bookings as tenant',
         security: [{ BearerAuth: [] }],
         responses: { 200: { description: 'Tenant bookings' } },
       },
@@ -736,14 +741,6 @@ export const swaggerDocument = {
         summary: 'Get bookings for my properties (property owner)',
         security: [{ BearerAuth: [] }],
         responses: { 200: { description: 'Owner bookings' } },
-      },
-    },
-    '/bookings/agent': {
-      get: {
-        tags: ['Bookings'],
-        summary: 'Get bookings assigned to me (agent)',
-        security: [{ BearerAuth: [] }],
-        responses: { 200: { description: 'Agent bookings' } },
       },
     },
     '/bookings/{id}': {
@@ -758,7 +755,7 @@ export const swaggerDocument = {
     '/bookings/{id}/respond': {
       patch: {
         tags: ['Bookings'],
-        summary: 'Approve or reject a booking (property owner or agent)',
+        summary: 'Approve or reject a booking (property owner)',
         security: [{ BearerAuth: [] }],
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
         requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/RespondBookingRequest' } } } },
@@ -768,7 +765,7 @@ export const swaggerDocument = {
     '/bookings/{id}/complete': {
       patch: {
         tags: ['Bookings'],
-        summary: 'Mark booking as completed or no-show (property owner or agent)',
+        summary: 'Mark booking as completed or no-show (property owner)',
         security: [{ BearerAuth: [] }],
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
         requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { status: { type: 'string', enum: ['completed', 'no_show'] } } } } } },
@@ -778,7 +775,7 @@ export const swaggerDocument = {
     '/bookings/{id}/cancel': {
       patch: {
         tags: ['Bookings'],
-        summary: 'Cancel a booking (tenant)',
+        summary: 'Cancel a booking',
         security: [{ BearerAuth: [] }],
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
         responses: { 200: { description: 'Booking cancelled' } },
@@ -788,7 +785,7 @@ export const swaggerDocument = {
     '/bookings/{id}/inspection-date': {
       patch: {
         tags: ['Bookings'],
-        summary: 'Assign an inspection date to a booking (property owner or agent)',
+        summary: 'Assign an inspection date to a booking (property owner)',
         security: [{ BearerAuth: [] }],
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
         requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['inspectionDate'], properties: { inspectionDate: { type: 'string', format: 'date-time', example: '2026-03-20T14:00:00Z' } } } } } },
@@ -903,6 +900,40 @@ export const swaggerDocument = {
       },
     },
 
+    // ═══ ADMIN — AUTH ═════════════════════════════
+    '/admin/login': {
+      post: {
+        tags: ['Admin'],
+        summary: 'Admin login',
+        description: 'Authenticate as an admin. Returns admin JWT with type: admin.',
+        requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/LoginRequest' } } } },
+        responses: {
+          200: { description: 'Login successful', content: { 'application/json': { schema: { $ref: '#/components/schemas/AuthResponse' } } } },
+          401: { description: 'Invalid credentials' },
+          403: { description: 'Account deactivated' },
+        },
+      },
+    },
+    '/admin/refresh': {
+      post: {
+        tags: ['Admin'],
+        summary: 'Refresh admin access token',
+        requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/RefreshTokenRequest' } } } },
+        responses: {
+          200: { description: 'Token refreshed' },
+          401: { description: 'Invalid refresh token' },
+        },
+      },
+    },
+    '/admin/logout': {
+      post: {
+        tags: ['Admin'],
+        summary: 'Admin logout (blacklist refresh token)',
+        requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/RefreshTokenRequest' } } } },
+        responses: { 200: { description: 'Logged out' } },
+      },
+    },
+
     // ═══ ADMIN — MEMBER MANAGEMENT ═══════════════
     '/admin/members': {
       get: {
@@ -949,7 +980,7 @@ export const swaggerDocument = {
       },
       delete: {
         tags: ['Admin'],
-        summary: 'Remove an admin member (downgrades to tenant)',
+        summary: 'Remove an admin member',
         description: 'Requires: manage_admins permission. Cannot remove super admins or yourself.',
         security: [{ BearerAuth: [] }],
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
@@ -999,7 +1030,7 @@ export const swaggerDocument = {
         parameters: [
           { name: 'page', in: 'query', schema: { type: 'integer' } },
           { name: 'limit', in: 'query', schema: { type: 'integer' } },
-          { name: 'role', in: 'query', schema: { type: 'string', enum: ['tenant', 'property_owner', 'agent', 'admin'] } },
+          { name: 'isPropertyOwner', in: 'query', schema: { type: 'boolean' }, description: 'Filter by property owner status' },
           { name: 'search', in: 'query', schema: { type: 'string' } },
         ],
         responses: { 200: { description: 'Users list' } },
@@ -1086,69 +1117,123 @@ export const swaggerDocument = {
       },
     },
 
-    // ═══ AGENTS ═══════════════════════════════════
-    '/agents': {
-      post: {
-        tags: ['Agents'],
-        summary: 'Add a new agent (property owner)',
+    // ═══ USERS — BECOME OWNER ════════════════════
+    '/users/become-owner': {
+      patch: {
+        tags: ['Users'],
+        summary: 'Upgrade to property owner',
+        description: 'Allows any authenticated user to become a property owner. Immediate activation.',
         security: [{ BearerAuth: [] }],
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: {
-                type: 'object',
-                required: ['firstName', 'lastName', 'email', 'phone', 'password'],
-                properties: {
-                  firstName: { type: 'string', example: 'Tunde' },
-                  lastName: { type: 'string', example: 'Bakare' },
-                  email: { type: 'string', format: 'email', example: 'tunde@example.com' },
-                  phone: { type: 'string', example: '+2348055555555' },
-                  password: { type: 'string', minLength: 8, example: 'AgentPass@123' },
-                },
-              },
-            },
-          },
-        },
         responses: {
-          201: { description: 'Agent created' },
-          409: { description: 'Email or phone already exists' },
+          200: { description: 'You are now a property owner' },
+          400: { description: 'Already a property owner' },
         },
       },
+    },
+
+    // ═══ WALLET ══════════════════════════════════
+    '/wallet': {
       get: {
-        tags: ['Agents'],
-        summary: 'List my agents (property owner)',
+        tags: ['Wallet'],
+        summary: 'Get my wallet balance (property owner)',
+        security: [{ BearerAuth: [] }],
+        responses: {
+          200: { description: 'Wallet details', content: { 'application/json': { schema: { $ref: '#/components/schemas/Wallet' } } } },
+          403: { description: 'Not a property owner' },
+          404: { description: 'Wallet not found' },
+        },
+      },
+    },
+    '/wallet/transactions': {
+      get: {
+        tags: ['Wallet'],
+        summary: 'Get my wallet transaction history',
         security: [{ BearerAuth: [] }],
         parameters: [
           { name: 'page', in: 'query', schema: { type: 'integer' } },
           { name: 'limit', in: 'query', schema: { type: 'integer' } },
+          { name: 'status', in: 'query', schema: { type: 'string', enum: ['pending', 'approved', 'rejected', 'completed'] } },
         ],
-        responses: { 200: { description: 'Paginated list of agents' } },
+        responses: { 200: { description: 'Transaction history' } },
       },
     },
-    '/agents/{id}': {
+    '/wallet/withdraw': {
+      post: {
+        tags: ['Wallet'],
+        summary: 'Request a withdrawal (property owner)',
+        description: 'Creates a pending withdrawal request that must be approved by an admin. Bank details must be set first.',
+        security: [{ BearerAuth: [] }],
+        requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/RequestWithdrawalRequest' } } } },
+        responses: {
+          200: { description: 'Withdrawal request submitted' },
+          400: { description: 'Insufficient balance or missing bank details' },
+          409: { description: 'Already have a pending withdrawal' },
+        },
+      },
+    },
+
+    // ═══ ADMIN — WALLETS ═════════════════════════
+    '/admin/wallets': {
       get: {
-        tags: ['Agents'],
-        summary: 'Get agent details',
+        tags: ['Admin'],
+        summary: 'List all owner wallets',
+        description: 'Requires: manage_wallets permission',
         security: [{ BearerAuth: [] }],
-        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
-        responses: { 200: { description: 'Agent details' } },
-      },
-      delete: {
-        tags: ['Agents'],
-        summary: 'Remove an agent',
-        security: [{ BearerAuth: [] }],
-        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
-        responses: { 200: { description: 'Agent deactivated' } },
+        parameters: [
+          { name: 'page', in: 'query', schema: { type: 'integer' } },
+          { name: 'limit', in: 'query', schema: { type: 'integer' } },
+          { name: 'search', in: 'query', schema: { type: 'string' } },
+        ],
+        responses: { 200: { description: 'All wallets' } },
       },
     },
-    '/agents/{id}/toggle-active': {
+    '/admin/wallets/{id}/transactions': {
+      get: {
+        tags: ['Admin'],
+        summary: 'View wallet transactions',
+        description: 'Requires: manage_wallets permission',
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+          { name: 'page', in: 'query', schema: { type: 'integer' } },
+          { name: 'limit', in: 'query', schema: { type: 'integer' } },
+        ],
+        responses: { 200: { description: 'Wallet transactions' } },
+      },
+    },
+    '/admin/withdrawals': {
+      get: {
+        tags: ['Admin'],
+        summary: 'List all withdrawal requests',
+        description: 'Requires: manage_wallets permission. Filterable by status.',
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          { name: 'page', in: 'query', schema: { type: 'integer' } },
+          { name: 'limit', in: 'query', schema: { type: 'integer' } },
+          { name: 'status', in: 'query', schema: { type: 'string', enum: ['pending', 'approved', 'rejected', 'completed'] } },
+        ],
+        responses: { 200: { description: 'All withdrawals' } },
+      },
+    },
+    '/admin/withdrawals/{id}/approve': {
       patch: {
-        tags: ['Agents'],
-        summary: 'Toggle agent active status',
+        tags: ['Admin'],
+        summary: 'Approve a withdrawal request',
+        description: 'Requires: manage_wallets permission',
         security: [{ BearerAuth: [] }],
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
-        responses: { 200: { description: 'Agent status toggled' } },
+        responses: { 200: { description: 'Withdrawal approved' } },
+      },
+    },
+    '/admin/withdrawals/{id}/reject': {
+      patch: {
+        tags: ['Admin'],
+        summary: 'Reject a withdrawal request',
+        description: 'Requires: manage_wallets permission',
+        security: [{ BearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['reason'], properties: { reason: { type: 'string' } } } } } },
+        responses: { 200: { description: 'Withdrawal rejected' } },
       },
     },
   },

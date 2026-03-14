@@ -1,6 +1,6 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsEnum, IsUUID, Min } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, IsEnum, IsUUID, Min, IsDateString } from 'class-validator';
 import { Type } from 'class-transformer';
-import { PaymentType } from '../../types';
+import { PaymentStatus, PaymentType } from '../../types';
 
 export class InitiatePaymentDto {
   @IsUUID()
@@ -28,4 +28,38 @@ export class VerifyPaymentDto {
   @IsString()
   @IsNotEmpty()
   reference!: string;
+}
+
+export class PaymentFilterDto {
+  @IsOptional()
+  @Type(() => Number)
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  limit?: number;
+
+  @IsOptional()
+  @IsEnum(PaymentStatus)
+  status?: PaymentStatus;
+
+  @IsOptional()
+  @IsEnum(PaymentType)
+  type?: PaymentType;
+
+  @IsOptional()
+  @IsDateString()
+  fromDate?: string;
+
+  @IsOptional()
+  @IsDateString()
+  toDate?: string;
+
+  @IsOptional()
+  @IsString()
+  sort?: string;
+
+  @IsOptional()
+  @IsString()
+  order?: 'ASC' | 'DESC';
 }

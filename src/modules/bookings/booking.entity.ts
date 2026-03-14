@@ -20,9 +20,6 @@ export class Booking {
   @Column({ type: 'uuid' })
   ownerId!: string;
 
-  @Column({ type: 'uuid', nullable: true })
-  agentId?: string;
-
   @Column({ type: 'timestamp' })
   proposedDate!: Date;
 
@@ -52,10 +49,6 @@ export class Booking {
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'ownerId' })
   owner!: User;
-
-  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
-  @JoinColumn({ name: 'agentId' })
-  agent?: User;
 
   @CreateDateColumn()
   createdAt!: Date;

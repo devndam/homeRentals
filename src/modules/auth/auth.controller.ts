@@ -45,6 +45,16 @@ export class AuthController {
     return sendSuccess(res, result);
   }
 
+  async verifyEmail(req: Request, res: Response) {
+    const result = await authService.verifyEmail(req.body.email, req.body.otp);
+    return sendSuccess(res, result);
+  }
+
+  async resendVerification(req: Request, res: Response) {
+    const result = await authService.resendVerificationOTP(req.body.email);
+    return sendSuccess(res, result);
+  }
+
   async me(req: AuthenticatedRequest, res: Response) {
     return sendSuccess(res, req.user, 'Current user');
   }

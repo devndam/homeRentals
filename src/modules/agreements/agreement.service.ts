@@ -3,8 +3,8 @@ import { Agreement } from './agreement.entity';
 import { Property } from '../properties/property.entity';
 import { User } from '../users/user.entity';
 import { ApiError } from '../../utils/api-error';
-import { AgreementStatus, PaginatedResponse, PaginationQuery, UserRole } from '../../types';
-import { CreateAgreementDto, SignAgreementDto } from './agreement.dto';
+import { AgreementStatus, PaginatedResponse, PaginationQuery, PropertyStatus } from '../../types';
+import { CreateAgreementDto, SignAgreementDto, AgreementFilterDto } from './agreement.dto';
 import { paginate } from '../../utils/pagination';
 import { generateAgreementPdf } from './pdf-generator';
 
@@ -22,9 +22,9 @@ export class AgreementService {
 
     // Verify tenant exists
     const tenant = await userRepo().findOne({
-      where: { id: dto.tenantId, role: UserRole.TENANT },
+      where: { id: dto.tenantId },
     });
-    if (!tenant) throw ApiError.notFound('Tenant not found');
+    if (!tenant) throw ApiError.notFound('User not found');
 
     const agreement = agreementRepo().create({
       ownerId,
@@ -58,20 +58,22 @@ export class AgreementService {
     return agreement;
   }
 
-  async getUserAgreements(userId: string, role: UserRole, query: PaginationQuery): Promise<PaginatedResponse<Agreement>> {
+  async getUserAgreements(userId: string, filters: AgreementFilterDto): Promise<PaginatedResponse<Agreement>> {
     const qb = agreementRepo()
       .createQueryBuilder('a')
       .leftJoinAndSelect('a.property', 'p')
       .leftJoinAndSelect('a.tenant', 'tenant')
-      .leftJoinAndSelect('a.owner', 'owner');
+      .leftJoinAndSelect('a.owner', 'owner')
+      .where('a.tenantId = :userId OR a.ownerId = :userId', { userId });
 
-    if (role === UserRole.TENANT) {
-      qb.where('a.tenantId = :userId', { userId });
-    } else {
-      qb.where('a.ownerId = :userId', { userId });
+    if (filters.status) {
+      qb.andWhere('a.status = :status', { status: filters.status });
+    }
+    if (filters.search) {
+      qb.andWhere('(p.title ILIKE :search OR p.address ILIKE :search)', { search: `%${filters.search}%` });
     }
 
-    return paginate(qb, { ...query, sort: query.sort || 'createdAt', order: query.order || 'DESC' });
+    return paginate(qb, { page: filters.page, limit: filters.limit, sort: filters.sort || 'createdAt', order: filters.order || 'DESC' });
   }
 
   async signAsTenant(agreementId: string, tenantId: string, dto: SignAgreementDto): Promise<Agreement> {
@@ -108,12 +110,23 @@ export class AgreementService {
       console.error('[Agreement] PDF generation failed:', err);
     }
 
+    // Deduct available unit from property
+    const property = agreement.property;
+    if (property.availableUnits > 0) {
+      property.availableUnits -= 1;
+      if (property.availableUnits === 0) {
+        property.status = PropertyStatus.RENTED;
+      }
+      await propertyRepo().save(property);
+    }
+
     return agreementRepo().save(agreement);
   }
 
   async terminate(agreementId: string, ownerId: string): Promise<Agreement> {
     const agreement = await agreementRepo().findOne({
       where: { id: agreementId, ownerId },
+      relations: ['property'],
     });
 
     if (!agreement) throw ApiError.notFound('Agreement not found');
@@ -122,6 +135,15 @@ export class AgreementService {
     }
 
     agreement.status = AgreementStatus.TERMINATED;
+
+    // Restore available unit to property
+    const property = agreement.property;
+    property.availableUnits += 1;
+    if (property.status === PropertyStatus.RENTED) {
+      property.status = PropertyStatus.ACTIVE;
+    }
+    await propertyRepo().save(property);
+
     return agreementRepo().save(agreement);
   }
 }

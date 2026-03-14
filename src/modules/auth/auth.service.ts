@@ -5,11 +5,15 @@ import { AppDataSource } from '../../config/data-source';
 import { User } from '../users/user.entity';
 import { env } from '../../config/env';
 import { ApiError } from '../../utils/api-error';
-import { JwtPayload, UserRole } from '../../types';
+import { UserJwtPayload, JwtPayload } from '../../types';
 import { RegisterDto, LoginDto } from './auth.dto';
 import { getRedis } from '../../config/redis';
+import { WalletService } from '../wallet/wallet.service';
+import { EmailService } from '../../utils/email.service';
 
 const userRepo = () => AppDataSource.getRepository(User);
+const walletService = new WalletService();
+const emailService = new EmailService();
 
 export class AuthService {
   async register(dto: RegisterDto) {
@@ -33,10 +37,27 @@ export class AuthService {
       email: dto.email.toLowerCase().trim(),
       phone: dto.phone,
       password: hashedPassword,
-      role: dto.role || UserRole.TENANT,
+      isPropertyOwner: dto.isPropertyOwner || false,
     });
 
     await userRepo().save(user);
+
+    // Generate 6-digit OTP for email verification
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const hashedOTP = crypto.createHash('sha256').update(otp).digest('hex');
+
+    user.emailVerificationOTP = hashedOTP;
+    user.emailVerificationExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    await userRepo().save(user);
+
+    // Send verification email (fire-and-forget)
+    emailService.sendVerificationOTP(user.email, user.firstName, otp).catch((err) => {
+      console.error('[Auth] Failed to send verification email:', err.message);
+    });
+
+    if (user.isPropertyOwner) {
+      await walletService.createWalletForUser(user.id);
+    }
 
     const tokens = this.generateTokens(user);
 
@@ -49,7 +70,7 @@ export class AuthService {
   async login(dto: LoginDto) {
     const user = await userRepo().findOne({
       where: { email: dto.email.toLowerCase().trim() },
-      select: ['id', 'email', 'password', 'role', 'firstName', 'lastName', 'phone', 'isActive', 'isSuperAdmin', 'permissions'],
+      select: ['id', 'email', 'password', 'isPropertyOwner', 'firstName', 'lastName', 'phone', 'isActive', 'emailVerified'],
     });
 
     if (!user) {
@@ -125,8 +146,10 @@ export class AuthService {
     user.passwordResetExpires = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
     await userRepo().save(user);
 
-    // TODO: Send email with reset link: `${env.frontendUrl}/reset-password?token=${resetToken}`
-    console.log(`[Auth] Password reset token for ${email}: ${resetToken}`);
+    // Send password reset email (fire-and-forget)
+    emailService.sendPasswordResetEmail(user.email, user.firstName, resetToken).catch((err) => {
+      console.error('[Auth] Failed to send password reset email:', err.message);
+    });
 
     return { message: 'If the email exists, a reset link has been sent' };
   }
@@ -148,6 +171,68 @@ export class AuthService {
     await userRepo().save(user);
 
     return { message: 'Password reset successful' };
+  }
+
+  async verifyEmail(email: string, otp: string) {
+    const user = await userRepo().findOne({
+      where: { email: email.toLowerCase().trim() },
+    });
+
+    if (!user) {
+      throw ApiError.badRequest('Invalid email or OTP');
+    }
+
+    if (user.emailVerified) {
+      throw ApiError.badRequest('Email is already verified');
+    }
+
+    if (!user.emailVerificationOTP || !user.emailVerificationExpires) {
+      throw ApiError.badRequest('No verification OTP found. Please request a new one');
+    }
+
+    if (user.emailVerificationExpires < new Date()) {
+      throw ApiError.badRequest('Verification OTP has expired. Please request a new one');
+    }
+
+    const hashedOTP = crypto.createHash('sha256').update(otp).digest('hex');
+
+    if (hashedOTP !== user.emailVerificationOTP) {
+      throw ApiError.badRequest('Invalid email or OTP');
+    }
+
+    user.emailVerified = true;
+    user.emailVerificationOTP = undefined;
+    user.emailVerificationExpires = undefined;
+    await userRepo().save(user);
+
+    return { message: 'Email verified successfully' };
+  }
+
+  async resendVerificationOTP(email: string) {
+    const user = await userRepo().findOne({
+      where: { email: email.toLowerCase().trim() },
+    });
+
+    if (!user) {
+      return { message: 'If the email exists, a verification OTP has been sent' };
+    }
+
+    if (user.emailVerified) {
+      throw ApiError.badRequest('Email is already verified');
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const hashedOTP = crypto.createHash('sha256').update(otp).digest('hex');
+
+    user.emailVerificationOTP = hashedOTP;
+    user.emailVerificationExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    await userRepo().save(user);
+
+    emailService.sendVerificationOTP(user.email, user.firstName, otp).catch((err) => {
+      console.error('[Auth] Failed to send verification email:', err.message);
+    });
+
+    return { message: 'If the email exists, a verification OTP has been sent' };
   }
 
   async changePassword(userId: string, currentPassword: string, newPassword: string) {
@@ -186,14 +271,11 @@ export class AuthService {
   // ─── Helpers ────────────────────────────────
 
   private generateTokens(user: User) {
-    const payload: JwtPayload = {
+    const payload: UserJwtPayload = {
       sub: user.id,
       email: user.email,
-      role: user.role,
-      ...(user.role === UserRole.ADMIN && {
-        permissions: user.permissions || [],
-        isSuperAdmin: user.isSuperAdmin || false,
-      }),
+      type: 'user',
+      isPropertyOwner: user.isPropertyOwner || false,
     };
 
     const accessToken = jwt.sign(payload, env.jwt.accessSecret, {
@@ -208,7 +290,14 @@ export class AuthService {
   }
 
   private sanitizeUser(user: User) {
-    const { password, passwordResetToken, passwordResetExpires, ...safe } = user;
+    const {
+      password,
+      passwordResetToken,
+      passwordResetExpires,
+      emailVerificationOTP,
+      emailVerificationExpires,
+      ...safe
+    } = user;
     return safe;
   }
 }

@@ -36,16 +36,6 @@ export class PropertyController {
     return sendNoContent(res);
   }
 
-  async assignAgent(req: AuthenticatedRequest, res: Response) {
-    const property = await propertyService.assignAgent(req.params.id, req.user.sub, req.body.agentId);
-    return sendSuccess(res, property, 'Agent assigned to property');
-  }
-
-  async removeAgent(req: AuthenticatedRequest, res: Response) {
-    const property = await propertyService.removeAgent(req.params.id, req.user.sub);
-    return sendSuccess(res, property, 'Agent removed from property');
-  }
-
   async uploadImages(req: AuthenticatedRequest, res: Response) {
     const files = req.files as Express.Multer.File[];
     if (!files || files.length === 0) {

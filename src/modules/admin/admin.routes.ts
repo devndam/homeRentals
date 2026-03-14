@@ -5,6 +5,7 @@ import { validateBody } from '../../middleware/validate';
 import { asyncHandler } from '../../utils/async-handler';
 import { AdminPermission } from '../../types';
 import { CreateAdminDto, UpdateAdminPermissionsDto, UpdateAdminRoleDto, UpdateUserDto, RejectPropertyDto } from './admin.dto';
+import { LoginDto, RefreshTokenDto } from '../auth/auth.dto';
 import { RejectKycDto } from '../kyc/kyc.dto';
 import { KycController } from '../kyc/kyc.controller';
 
@@ -12,7 +13,12 @@ const router = Router();
 const ctrl = new AdminController();
 const kycCtrl = new KycController();
 
-// All admin routes require authentication (permission checked per-route)
+// ─── Public admin auth routes (no JWT required) ───
+router.post('/login', validateBody(LoginDto), asyncHandler(ctrl.login as any));
+router.post('/refresh', validateBody(RefreshTokenDto), asyncHandler(ctrl.refreshToken as any));
+router.post('/logout', asyncHandler(ctrl.logout as any));
+
+// All remaining admin routes require authentication (permission checked per-route)
 router.use(authenticate as any);
 
 // ─── Admin Member Management (requires MANAGE_ADMINS) ───
@@ -50,5 +56,14 @@ router.patch('/kyc/:id/reject', requirePermission(AdminPermission.MANAGE_KYC) as
 
 // ─── Payments ───────────────────────────────
 router.get('/payments', requirePermission(AdminPermission.VIEW_PAYMENTS) as any, asyncHandler(ctrl.getAllPayments as any));
+
+// ─── Wallet Management ─────────────────────
+import { RejectWithdrawalDto } from '../wallet/wallet.dto';
+
+router.get('/wallets', requirePermission(AdminPermission.MANAGE_WALLETS) as any, asyncHandler(ctrl.getAllWallets as any));
+router.get('/wallets/:id/transactions', requirePermission(AdminPermission.MANAGE_WALLETS) as any, asyncHandler(ctrl.getWalletTransactions as any));
+router.get('/withdrawals', requirePermission(AdminPermission.MANAGE_WALLETS) as any, asyncHandler(ctrl.getAllWithdrawals as any));
+router.patch('/withdrawals/:id/approve', requirePermission(AdminPermission.MANAGE_WALLETS) as any, asyncHandler(ctrl.approveWithdrawal as any));
+router.patch('/withdrawals/:id/reject', requirePermission(AdminPermission.MANAGE_WALLETS) as any, validateBody(RejectWithdrawalDto), asyncHandler(ctrl.rejectWithdrawal as any));
 
 export default router;

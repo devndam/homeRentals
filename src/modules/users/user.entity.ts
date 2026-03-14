@@ -1,12 +1,12 @@
 import {
   Entity, PrimaryGeneratedColumn, Column, CreateDateColumn,
-  UpdateDateColumn, OneToMany, Index,
+  UpdateDateColumn, OneToMany, OneToOne, Index,
 } from 'typeorm';
-import { UserRole, AdminPermission } from '../../types';
 import { Property } from '../properties/property.entity';
 import { Booking } from '../bookings/booking.entity';
 import { Agreement } from '../agreements/agreement.entity';
 import { Payment } from '../payments/payment.entity';
+import { Wallet } from '../wallet/wallet.entity';
 
 @Entity('users')
 export class User {
@@ -30,8 +30,8 @@ export class User {
   @Column({ select: false })
   password!: string;
 
-  @Column({ type: 'enum', enum: UserRole, default: UserRole.TENANT })
-  role!: UserRole;
+  @Column({ default: false })
+  isPropertyOwner!: boolean;
 
   @Column({ nullable: true })
   avatarUrl?: string;
@@ -58,10 +58,6 @@ export class User {
     propertyTypes?: string[];
   };
 
-  // ─── Agent-specific ─────────────────────────
-  @Column({ type: 'uuid', nullable: true })
-  addedByOwnerId?: string;
-
   // ─── Verification ─────────────────────────
   @Column({ default: false })
   emailVerified!: boolean;
@@ -75,21 +71,17 @@ export class User {
   @Column({ default: true })
   isActive!: boolean;
 
-  // ─── Admin permissions ──────────────────────
-  @Column({ default: false })
-  isSuperAdmin!: boolean;
-
-  @Column({ type: 'jsonb', default: [] })
-  permissions!: AdminPermission[];
-
-  @Column({ nullable: true })
-  addedByAdminId?: string;
-
   @Column({ nullable: true })
   passwordResetToken?: string;
 
   @Column({ type: 'timestamp', nullable: true })
   passwordResetExpires?: Date;
+
+  @Column({ nullable: true })
+  emailVerificationOTP?: string;
+
+  @Column({ type: 'timestamp', nullable: true })
+  emailVerificationExpires?: Date;
 
   @CreateDateColumn()
   createdAt!: Date;
@@ -112,4 +104,7 @@ export class User {
 
   @OneToMany(() => Payment, (p) => p.user)
   payments!: Payment[];
+
+  @OneToOne(() => Wallet, (w) => w.user)
+  wallet?: Wallet;
 }
