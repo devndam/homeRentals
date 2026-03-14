@@ -3,6 +3,8 @@ import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
 import { ApiError } from '../utils/api-error';
 import { AuthenticatedRequest, JwtPayload, AdminPermission } from '../types';
+import { AppDataSource } from '../config/data-source';
+import { User } from '../modules/users/user.entity';
 
 /**
  * Verifies JWT access token from Authorization header.
@@ -25,12 +27,29 @@ export function authenticate(req: AuthenticatedRequest, _res: Response, next: Ne
 
 /**
  * Restricts access to users with isPropertyOwner = true.
+ * Falls back to DB check in case JWT is stale (e.g. user upgraded after login).
  */
 export function requirePropertyOwner() {
-  return (req: AuthenticatedRequest, _res: Response, next: NextFunction) => {
-    if (!req.user || req.user.type !== 'user' || !req.user.isPropertyOwner) {
+  return async (req: AuthenticatedRequest, _res: Response, next: NextFunction) => {
+    if (!req.user || req.user.type !== 'user') {
       throw ApiError.forbidden('Property owner access required');
     }
+
+    if (req.user.isPropertyOwner) {
+      return next();
+    }
+
+    // JWT may be stale — check DB
+    const user = await AppDataSource.getRepository(User).findOne({
+      where: { id: req.user.sub },
+      select: ['id', 'isPropertyOwner'],
+    });
+
+    if (!user?.isPropertyOwner) {
+      throw ApiError.forbidden('Property owner access required');
+    }
+
+    req.user.isPropertyOwner = true;
     next();
   };
 }
