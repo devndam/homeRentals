@@ -10,6 +10,7 @@ import { RegisterDto, LoginDto } from './auth.dto';
 import { getRedis } from '../../config/redis';
 import { WalletService } from '../wallet/wallet.service';
 import { EmailService } from '../../utils/email.service';
+import { OtpService } from '../../utils/otp.service';
 
 const userRepo = () => AppDataSource.getRepository(User);
 const walletService = new WalletService();
@@ -43,8 +44,7 @@ export class AuthService {
     await userRepo().save(user);
 
     // Generate 6-digit OTP for email verification
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const hashedOTP = crypto.createHash('sha256').update(otp).digest('hex');
+    const { otp, hashedOTP } = OtpService.generate();
 
     user.emailVerificationOTP = hashedOTP;
     user.emailVerificationExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
@@ -194,9 +194,7 @@ export class AuthService {
       throw ApiError.badRequest('Verification OTP has expired. Please request a new one');
     }
 
-    const hashedOTP = crypto.createHash('sha256').update(otp).digest('hex');
-
-    if (hashedOTP !== user.emailVerificationOTP) {
+    if (OtpService.hash(otp) !== user.emailVerificationOTP) {
       throw ApiError.badRequest('Invalid email or OTP');
     }
 
@@ -221,8 +219,7 @@ export class AuthService {
       throw ApiError.badRequest('Email is already verified');
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const hashedOTP = crypto.createHash('sha256').update(otp).digest('hex');
+    const { otp, hashedOTP } = OtpService.generate();
 
     user.emailVerificationOTP = hashedOTP;
     user.emailVerificationExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
