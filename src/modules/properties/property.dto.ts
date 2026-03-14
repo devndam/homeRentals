@@ -3,7 +3,7 @@ import {
   IsArray, Min, IsDateString, IsInt,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
-import { PropertyType } from '../../types';
+import { PropertyType, PropertyStatus } from '../../types';
 
 export class CreatePropertyDto {
   @IsString()
@@ -164,6 +164,10 @@ export class PropertyFilterDto {
   @Type(() => Number)
   @Min(1)
   radius?: number; // km, default 10
+
+  @IsOptional()
+  @IsEnum(PropertyStatus)
+  status?: PropertyStatus;
 
   @IsOptional()
   @IsString()

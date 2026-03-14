@@ -89,6 +89,10 @@ export class PropertyService {
       .leftJoinAndSelect('p.images', 'img')
       .where('p.ownerId = :ownerId', { ownerId });
 
+    if (filters.status) {
+      qb.andWhere('p.status = :status', { status: filters.status });
+    }
+
     return paginate(qb, {
       page: filters.page,
       limit: filters.limit,

@@ -22,9 +22,16 @@ export class KycService {
       userId,
       documentType: dto.documentType,
       documentUrl: `/uploads/${file.filename}`,
+      status: KycStatus.APPROVED, // Auto-approve for testing
+      reviewedAt: new Date(),
     });
 
-    return kycRepo().save(doc);
+    await kycRepo().save(doc);
+
+    // Mark user as identity verified
+    await userRepo().update(userId, { identityVerified: true });
+
+    return doc;
   }
 
   async getMySubmissions(userId: string, query: KycListQueryDto): Promise<PaginatedResponse<KycDocument>> {
