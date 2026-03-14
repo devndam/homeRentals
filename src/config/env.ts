@@ -21,11 +21,7 @@ export const env = {
   apiPrefix: optional('API_PREFIX', '/api/v1'),
 
   db: {
-    host: optional('DB_HOST', 'localhost'),
-    port: parseInt(optional('DB_PORT', '5432'), 10),
-    username: optional('DB_USERNAME', 'postgres'),
-    password: optional('DB_PASSWORD', 'postgres'),
-    name: optional('DB_NAME', 'rentals_db'),
+    url: optional('DATABASE_URL', 'postgres://postgres:root@localhost:5432/rentals'),
   },
 
   redis: {

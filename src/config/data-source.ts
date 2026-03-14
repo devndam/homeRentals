@@ -6,11 +6,7 @@ import { UrlTransformSubscriber } from '../subscribers/url-transform.subscriber'
 
 const options: DataSourceOptions = {
   type: 'postgres',
-  host: env.db.host,
-  port: env.db.port,
-  username: env.db.username,
-  password: env.db.password,
-  database: env.db.name,
+  url: env.db.url,
   ssl: env.isDev ? false : { rejectUnauthorized: false },
   synchronize: env.isDev, // auto-sync in dev only; use migrations in prod
   logging: env.isDev ? ['error', 'warn'] : ['error'],
