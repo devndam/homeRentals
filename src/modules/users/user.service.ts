@@ -5,7 +5,7 @@ import { UpdateProfileDto, UpdateBankDetailsDto, UpdatePreferencesDto } from './
 import { WalletService } from '../wallet/wallet.service';
 import { Property } from '../properties/property.entity';
 import { Booking } from '../bookings/booking.entity';
-import { Agreement } from '../agreements/agreement.entity';
+import { Invoice } from '../invoices/invoice.entity';
 import { Payment } from '../payments/payment.entity';
 import { Wallet } from '../wallet/wallet.entity';
 import { Favorite } from '../properties/favorite.entity';
@@ -75,10 +75,10 @@ export class UserService {
   private async getOwnerDashboard(userId: string) {
     const propertyRepo = AppDataSource.getRepository(Property);
     const bookingRepo = AppDataSource.getRepository(Booking);
-    const agreementRepo = AppDataSource.getRepository(Agreement);
+    const invoiceRepo = AppDataSource.getRepository(Invoice);
     const walletRepo = AppDataSource.getRepository(Wallet);
 
-    const [properties, bookings, agreements, wallet] = await Promise.all([
+    const [properties, bookings, invoices, wallet] = await Promise.all([
       propertyRepo
         .createQueryBuilder('p')
         .select([
@@ -104,12 +104,12 @@ export class UserService {
         .where('b."ownerId" = :userId', { userId })
         .getRawOne(),
 
-      agreementRepo
+      invoiceRepo
         .createQueryBuilder('a')
         .select([
           'COUNT(*)::int AS "total"',
-          'COUNT(*) FILTER (WHERE a.status = \'active\')::int AS "active"',
-          'COUNT(*) FILTER (WHERE a.status IN (\'pending_tenant\', \'pending_owner\'))::int AS "pendingSignature"',
+          'COUNT(*) FILTER (WHERE a.status = \'completed\')::int AS "active"',
+          'COUNT(*) FILTER (WHERE a.status IN (\'requested\', \'sent\', \'agreement_sent\'))::int AS "pending"',
           'COUNT(*) FILTER (WHERE a.status = \'terminated\')::int AS "terminated"',
           'COUNT(*) FILTER (WHERE a.status = \'expired\')::int AS "expired"',
         ])
@@ -122,7 +122,7 @@ export class UserService {
     return {
       properties,
       bookings,
-      agreements,
+      invoices,
       wallet: wallet
         ? { balance: wallet.balance, totalEarned: wallet.totalEarned, totalWithdrawn: wallet.totalWithdrawn }
         : { balance: 0, totalEarned: 0, totalWithdrawn: 0 },
@@ -131,11 +131,11 @@ export class UserService {
 
   private async getTenantDashboard(userId: string) {
     const bookingRepo = AppDataSource.getRepository(Booking);
-    const agreementRepo = AppDataSource.getRepository(Agreement);
+    const invoiceRepo = AppDataSource.getRepository(Invoice);
     const paymentRepo = AppDataSource.getRepository(Payment);
     const favoriteRepo = AppDataSource.getRepository(Favorite);
 
-    const [bookings, agreements, payments, favorites] = await Promise.all([
+    const [bookings, invoices, payments, favorites] = await Promise.all([
       bookingRepo
         .createQueryBuilder('b')
         .select([
@@ -148,12 +148,12 @@ export class UserService {
         .where('b."tenantId" = :userId', { userId })
         .getRawOne(),
 
-      agreementRepo
+      invoiceRepo
         .createQueryBuilder('a')
         .select([
           'COUNT(*)::int AS "total"',
-          'COUNT(*) FILTER (WHERE a.status = \'active\')::int AS "active"',
-          'COUNT(*) FILTER (WHERE a.status IN (\'pending_tenant\', \'pending_owner\'))::int AS "pendingSignature"',
+          'COUNT(*) FILTER (WHERE a.status = \'completed\')::int AS "active"',
+          'COUNT(*) FILTER (WHERE a.status IN (\'requested\', \'sent\', \'agreement_sent\'))::int AS "pending"',
           'COUNT(*) FILTER (WHERE a.status = \'expired\')::int AS "expired"',
         ])
         .where('a."tenantId" = :userId', { userId })
@@ -174,10 +174,29 @@ export class UserService {
 
     return {
       bookings,
-      agreements,
+      invoices,
       payments,
       favorites,
     };
+  }
+
+  async searchUsers(query: string, excludeUserId?: string) {
+    const qb = userRepo()
+      .createQueryBuilder('u')
+      .select(['u.id', 'u.firstName', 'u.lastName', 'u.email', 'u.phone', 'u.avatarUrl'])
+      .where('u.isActive = true')
+      .andWhere(
+        '(u.firstName ILIKE :q OR u.lastName ILIKE :q OR u.email ILIKE :q OR u.phone ILIKE :q)',
+        { q: `%${query}%` },
+      )
+      .orderBy('u.firstName', 'ASC')
+      .limit(20);
+
+    if (excludeUserId) {
+      qb.andWhere('u.id != :excludeUserId', { excludeUserId });
+    }
+
+    return qb.getMany();
   }
 
   async getOwnerPublicProfile(ownerId: string) {

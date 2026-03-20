@@ -6,7 +6,7 @@ import { PropertyStatus, PropertyType } from '../../types';
 import { User } from '../users/user.entity';
 import { PropertyImage } from './property-image.entity';
 import { Booking } from '../bookings/booking.entity';
-import { Agreement } from '../agreements/agreement.entity';
+import { Invoice } from '../invoices/invoice.entity';
 
 @Entity('properties')
 export class Property {
@@ -111,8 +111,8 @@ export class Property {
   @OneToMany(() => Booking, (b) => b.property)
   bookings!: Booking[];
 
-  @OneToMany(() => Agreement, (a) => a.property)
-  agreements!: Agreement[];
+  @OneToMany(() => Invoice, (a) => a.property)
+  invoices!: Invoice[];
 
   @CreateDateColumn()
   createdAt!: Date;

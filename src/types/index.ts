@@ -25,18 +25,22 @@ export enum PropertyType {
 export enum BookingStatus {
   PENDING = 'pending',
   APPROVED = 'approved',
+  INSPECTION_SCHEDULED = 'inspection_scheduled',
   REJECTED = 'rejected',
   COMPLETED = 'completed',
   CANCELLED = 'cancelled',
   NO_SHOW = 'no_show',
 }
 
-export enum AgreementStatus {
+export enum InvoiceStatus {
+  REQUESTED = 'requested',
   DRAFT = 'draft',
-  PENDING_TENANT = 'pending_tenant',
-  PENDING_OWNER = 'pending_owner',
-  ACTIVE = 'active',
+  SENT = 'sent',
+  PAID = 'paid',
+  AGREEMENT_SENT = 'agreement_sent',
+  COMPLETED = 'completed',
   EXPIRED = 'expired',
+  CANCELLED = 'cancelled',
   TERMINATED = 'terminated',
 }
 
@@ -51,7 +55,8 @@ export enum PaymentType {
   RENT = 'rent',
   DEPOSIT = 'deposit',
   COMMISSION = 'commission',
-  AGREEMENT_FEE = 'agreement_fee',
+  INVOICE_FEE = 'invoice_fee',
+  INITIAL = 'initial',
 }
 
 export enum TransactionType {
@@ -79,6 +84,23 @@ export enum WithdrawalStatus {
   COMPLETED = 'completed',
 }
 
+export enum DisputeType {
+  INVOICE = 'invoice',
+  PAYMENT = 'payment',
+  REFUND = 'refund',
+}
+
+export enum DisputeStatus {
+  OPEN = 'open',
+  IN_REVIEW = 'in_review',
+  RESOLVED = 'resolved',
+}
+
+export enum LegalDocumentStatus {
+  PENDING = 'pending',
+  ACKNOWLEDGED = 'acknowledged',
+}
+
 // ─── Admin Permissions ──────────────────────────────────
 export enum AdminPermission {
   // Admin management
@@ -99,8 +121,8 @@ export enum AdminPermission {
   VIEW_PAYMENTS = 'view_payments',
   PROCESS_REFUND = 'process_refund',
 
-  // Agreements
-  VIEW_AGREEMENTS = 'view_agreements',
+  // Invoices
+  VIEW_INVOICES = 'view_invoices',
 
   // Dashboard / analytics
   VIEW_DASHBOARD = 'view_dashboard',
@@ -113,6 +135,12 @@ export enum AdminPermission {
 
   // Wallets
   MANAGE_WALLETS = 'manage_wallets',
+
+  // Legal Documents
+  MANAGE_LEGAL_DOCUMENTS = 'manage_legal_documents',
+
+  // System Settings
+  MANAGE_SETTINGS = 'manage_settings',
 }
 
 export const ALL_ADMIN_PERMISSIONS = Object.values(AdminPermission);

@@ -3,6 +3,7 @@ import {
   CreateDateColumn, UpdateDateColumn,
 } from 'typeorm';
 import { KycDocumentType, KycStatus } from '../../types';
+import { Admin } from '../admin/admin.entity';
 import { User } from '../users/user.entity';
 
 @Entity('kyc_documents')
@@ -35,9 +36,9 @@ export class KycDocument {
   @JoinColumn({ name: 'userId' })
   user!: User;
 
-  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  @ManyToOne(() => Admin, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'reviewedByAdminId' })
-  reviewedByAdmin?: User;
+  reviewedByAdmin?: Admin;
 
   @CreateDateColumn()
   createdAt!: Date;

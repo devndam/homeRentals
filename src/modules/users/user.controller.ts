@@ -37,6 +37,15 @@ export class UserController {
     return sendSuccess(res, stats);
   }
 
+  async searchUsers(req: AuthenticatedRequest, res: Response) {
+    const q = (req.query.q as string || '').trim();
+    if (!q || q.length < 2) {
+      return sendSuccess(res, []);
+    }
+    const users = await userService.searchUsers(q, req.user.sub);
+    return sendSuccess(res, users);
+  }
+
   async getOwnerProfile(req: AuthenticatedRequest, res: Response) {
     const profile = await userService.getOwnerPublicProfile(req.params.id);
     return sendSuccess(res, profile);

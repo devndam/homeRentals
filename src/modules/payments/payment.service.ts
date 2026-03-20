@@ -2,18 +2,22 @@ import { v4 as uuid } from 'uuid';
 import { AppDataSource } from '../../config/data-source';
 import { Payment } from './payment.entity';
 import { User } from '../users/user.entity';
+import { Invoice } from '../invoices/invoice.entity';
 import { ApiError } from '../../utils/api-error';
-import { PaymentStatus, PaginatedResponse, PaginationQuery } from '../../types';
+import { PaymentStatus, InvoiceStatus, PaginatedResponse, PaginationQuery } from '../../types';
 import { InitiatePaymentDto, PaymentFilterDto } from './payment.dto';
 import { PaystackService } from './paystack.service';
 import { env } from '../../config/env';
 import { paginate } from '../../utils/pagination';
 import { WalletService } from '../wallet/wallet.service';
+import { SystemSettingsService } from '../settings/system-settings.service';
 
 const paymentRepo = () => AppDataSource.getRepository(Payment);
 const userRepo = () => AppDataSource.getRepository(User);
+const invoiceRepo = () => AppDataSource.getRepository(Invoice);
 const paystackService = new PaystackService();
 const walletService = new WalletService();
+const settingsService = new SystemSettingsService();
 
 export class PaymentService {
   async initiate(userId: string, dto: InitiatePaymentDto) {
@@ -22,8 +26,9 @@ export class PaymentService {
 
     const reference = `PAY-${uuid().split('-')[0].toUpperCase()}-${Date.now()}`;
 
-    // Calculate commission split
-    const commissionRate = env.paystack.commissionPercent / 100;
+    // Calculate commission split from system settings
+    const settings = await settingsService.getSettings();
+    const commissionRate = Number(settings.platformCommissionPercent) / 100;
     const commission = Math.round(dto.amount * commissionRate * 100) / 100;
     const ownerAmount = dto.amount - commission;
 
@@ -32,7 +37,7 @@ export class PaymentService {
       reference,
       userId,
       propertyId: dto.propertyId,
-      agreementId: dto.agreementId,
+      invoiceId: dto.invoiceId,
       type: dto.type,
       amount: dto.amount,
       commission,
@@ -93,7 +98,10 @@ export class PaymentService {
     if (!payment) throw ApiError.notFound('Payment not found');
 
     if (payment.status === PaymentStatus.SUCCESS) {
-      return payment; // Already verified
+      // Ensure invoice status is up to date (handles edge case where
+      // webhook processed before invoice status logic was added)
+      await this.handleInvoicePaymentSuccess(payment);
+      return payment;
     }
 
     try {
@@ -110,6 +118,7 @@ export class PaymentService {
 
       if (payment.status === PaymentStatus.SUCCESS) {
         await walletService.creditOwnerWallet(payment);
+        await this.handleInvoicePaymentSuccess(payment);
       }
 
       return payment;
@@ -132,6 +141,7 @@ export class PaymentService {
         await paymentRepo().save(payment);
 
         await walletService.creditOwnerWallet(payment);
+        await this.handleInvoicePaymentSuccess(payment);
       }
     }
   }
@@ -165,5 +175,46 @@ export class PaymentService {
     });
     if (!payment) throw ApiError.notFound('Payment not found');
     return payment;
+  }
+
+  private calculateNextDueDate(fromDate: string, rentPeriod: string): string {
+    const date = new Date(fromDate);
+    if (rentPeriod === 'monthly') {
+      date.setMonth(date.getMonth() + 1);
+    } else {
+      // yearly (default)
+      date.setFullYear(date.getFullYear() + 1);
+    }
+    return date.toISOString().split('T')[0];
+  }
+
+  private async handleInvoicePaymentSuccess(payment: Payment): Promise<void> {
+    if (!payment.invoiceId) return;
+
+    const invoice = await invoiceRepo().findOne({
+      where: { id: payment.invoiceId },
+    });
+    if (!invoice) return;
+
+    if (!invoice.initialPaymentDone) {
+      invoice.initialPaymentDone = true;
+      invoice.initialPaymentId = payment.id;
+      invoice.nextRentDueDate = this.calculateNextDueDate(
+        invoice.startDate!,
+        invoice.rentPeriod,
+      );
+    } else if (invoice.nextRentDueDate) {
+      invoice.nextRentDueDate = this.calculateNextDueDate(
+        invoice.nextRentDueDate,
+        invoice.rentPeriod,
+      );
+    }
+
+    // Update invoice status from sent → paid on successful payment
+    if (invoice.status === InvoiceStatus.SENT) {
+      invoice.status = InvoiceStatus.PAID;
+    }
+
+    await invoiceRepo().save(invoice);
   }
 }

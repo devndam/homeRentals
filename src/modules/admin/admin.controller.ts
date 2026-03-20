@@ -94,6 +94,43 @@ export class AdminController {
     return sendSuccess(res, user, 'User identity verified');
   }
 
+  async resetUserPassword(req: AuthenticatedRequest, res: Response) {
+    await adminService.resetUserPassword(req.params.id);
+    return sendSuccess(res, null, 'Password reset and emailed to user');
+  }
+
+  // ─── User Sub-resources ─────────────────
+  async getUserProperties(req: AuthenticatedRequest, res: Response) {
+    const result = await adminService.getUserProperties(req.params.id, req.query as any);
+    return sendPaginated(res, result);
+  }
+
+  async getUserBookings(req: AuthenticatedRequest, res: Response) {
+    const result = await adminService.getUserBookings(req.params.id, req.query as any);
+    return sendPaginated(res, result);
+  }
+
+  async getUserInvoices(req: AuthenticatedRequest, res: Response) {
+    const result = await adminService.getUserInvoices(req.params.id, req.query as any);
+    return sendPaginated(res, result);
+  }
+
+  async getUserPayments(req: AuthenticatedRequest, res: Response) {
+    const result = await adminService.getUserPayments(req.params.id, req.query as any);
+    return sendPaginated(res, result);
+  }
+
+  async getUserWallet(req: AuthenticatedRequest, res: Response) {
+    const wallet = await walletService.getMyWallet(req.params.id);
+    return sendSuccess(res, wallet);
+  }
+
+  // ─── Invoices ───────────────────────────
+  async getAllInvoices(req: AuthenticatedRequest, res: Response) {
+    const result = await adminService.getAllInvoices(req.query as any);
+    return sendPaginated(res, result);
+  }
+
   // ─── Property Moderation ─────────────────
   async getPendingProperties(req: AuthenticatedRequest, res: Response) {
     const result = await adminService.getPendingProperties(req.query as any);
@@ -129,6 +166,11 @@ export class AdminController {
   async getAllPayments(req: AuthenticatedRequest, res: Response) {
     const result = await adminService.getAllPayments(req.query as any);
     return sendPaginated(res, result);
+  }
+
+  async getPaymentStats(_req: AuthenticatedRequest, res: Response) {
+    const stats = await adminService.getPaymentStats();
+    return sendSuccess(res, stats);
   }
 
   // ─── Wallets ──────────────────────────────

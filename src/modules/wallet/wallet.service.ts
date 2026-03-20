@@ -20,11 +20,22 @@ export class WalletService {
   // WALLET CREATION
   // ═══════════════════════════════════════════════
 
-  async createWalletForUser(userId: string): Promise<Wallet> {
+  async createWalletForUser(userId: string, initialBalance?: number): Promise<Wallet> {
     const existing = await walletRepo().findOne({ where: { userId } });
-    if (existing) return existing;
+    if (existing) {
+      if (initialBalance && initialBalance > 0) {
+        existing.balance = Number(existing.balance) + initialBalance;
+        existing.totalEarned = Number(existing.totalEarned) + initialBalance;
+        return walletRepo().save(existing);
+      }
+      return existing;
+    }
 
-    const wallet = walletRepo().create({ userId });
+    const wallet = walletRepo().create({
+      userId,
+      balance: initialBalance || 0,
+      totalEarned: initialBalance || 0,
+    });
     return walletRepo().save(wallet);
   }
 

@@ -5,7 +5,7 @@ import {
 import { PaymentStatus, PaymentType } from '../../types';
 import { User } from '../users/user.entity';
 import { Property } from '../properties/property.entity';
-import { Agreement } from '../agreements/agreement.entity';
+import { Invoice } from '../invoices/invoice.entity';
 
 @Entity('payments')
 export class Payment {
@@ -23,7 +23,7 @@ export class Payment {
   propertyId?: string;
 
   @Column({ type: 'uuid', nullable: true })
-  agreementId?: string;
+  invoiceId?: string;
 
   @Column({ type: 'enum', enum: PaymentType })
   type!: PaymentType;
@@ -68,9 +68,9 @@ export class Payment {
   @JoinColumn({ name: 'propertyId' })
   property?: Property;
 
-  @ManyToOne(() => Agreement, { onDelete: 'SET NULL', nullable: true })
-  @JoinColumn({ name: 'agreementId' })
-  agreement?: Agreement;
+  @ManyToOne(() => Invoice, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'invoiceId' })
+  invoice?: Invoice;
 
   @CreateDateColumn()
   createdAt!: Date;

@@ -5,21 +5,26 @@ import { User } from '../users/user.entity';
 import { Property } from '../properties/property.entity';
 import { Payment } from '../payments/payment.entity';
 import { Booking } from '../bookings/booking.entity';
-import { Agreement } from '../agreements/agreement.entity';
+import { Invoice } from '../invoices/invoice.entity';
 import { ApiError } from '../../utils/api-error';
 import {
   AdminPermission, ALL_ADMIN_PERMISSIONS,
   PaginatedResponse, PaginationQuery, PropertyStatus, PaymentStatus,
+  BookingStatus, InvoiceStatus,
 } from '../../types';
 import { CreateAdminDto, UpdateAdminPermissionsDto, UpdateUserDto } from './admin.dto';
 import { paginate } from '../../utils/pagination';
+import { EmailService } from '../../utils/email.service';
+import crypto from 'crypto';
+
+const emailService = new EmailService();
 
 const adminRepo = () => AppDataSource.getRepository(Admin);
 const userRepo = () => AppDataSource.getRepository(User);
 const propertyRepo = () => AppDataSource.getRepository(Property);
 const paymentRepo = () => AppDataSource.getRepository(Payment);
 const bookingRepo = () => AppDataSource.getRepository(Booking);
-const agreementRepo = () => AppDataSource.getRepository(Agreement);
+const invoiceRepo = () => AppDataSource.getRepository(Invoice);
 
 export class AdminService {
   // ═══════════════════════════════════════════════
@@ -130,7 +135,7 @@ export class AdminService {
       [AdminPermission.SUSPEND_PROPERTY]: 'Suspend property listings',
       [AdminPermission.VIEW_PAYMENTS]: 'View all payment transactions',
       [AdminPermission.PROCESS_REFUND]: 'Process payment refunds',
-      [AdminPermission.VIEW_AGREEMENTS]: 'View all rental agreements',
+      [AdminPermission.VIEW_INVOICES]: 'View all rental invoices',
       [AdminPermission.VIEW_DASHBOARD]: 'View dashboard analytics',
       [AdminPermission.MANAGE_DISPUTES]: 'Manage and resolve disputes',
       [AdminPermission.MANAGE_KYC]: 'Review, approve, and reject KYC submissions',
@@ -148,6 +153,7 @@ export class AdminService {
   // ═══════════════════════════════════════════════
 
   async getDashboardStats() {
+    // ── Summary counts ──
     const [totalUsers, totalOwners, totalAdmins] = await Promise.all([
       userRepo().count(),
       userRepo().count({ where: { isPropertyOwner: true } }),
@@ -161,7 +167,7 @@ export class AdminService {
     ]);
 
     const totalBookings = await bookingRepo().count();
-    const totalAgreements = await agreementRepo().count();
+    const totalInvoices = await invoiceRepo().count();
 
     const revenueResult = await paymentRepo()
       .createQueryBuilder('p')
@@ -170,15 +176,106 @@ export class AdminService {
       .where('p.status = :status', { status: PaymentStatus.SUCCESS })
       .getRawOne();
 
+    // ── Activity trends (last 90 days, frontend slices by period) ──
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 90);
+
+    const [listingTrends, bookingTrends, paymentTrends] = await Promise.all([
+      propertyRepo().createQueryBuilder('p')
+        .select("TO_CHAR(p.createdAt, 'YYYY-MM-DD')", 'date')
+        .addSelect('COUNT(*)::int', 'count')
+        .where('p.createdAt >= :start', { start: startDate })
+        .groupBy("TO_CHAR(p.createdAt, 'YYYY-MM-DD')")
+        .orderBy('date', 'ASC')
+        .getRawMany(),
+
+      bookingRepo().createQueryBuilder('b')
+        .select("TO_CHAR(b.createdAt, 'YYYY-MM-DD')", 'date')
+        .addSelect('COUNT(*)::int', 'count')
+        .where('b.createdAt >= :start', { start: startDate })
+        .groupBy("TO_CHAR(b.createdAt, 'YYYY-MM-DD')")
+        .orderBy('date', 'ASC')
+        .getRawMany(),
+
+      paymentRepo().createQueryBuilder('pay')
+        .select("TO_CHAR(pay.createdAt, 'YYYY-MM-DD')", 'date')
+        .addSelect('COUNT(*)::int', 'count')
+        .where('pay.createdAt >= :start', { start: startDate })
+        .andWhere('pay.status = :status', { status: PaymentStatus.SUCCESS })
+        .groupBy("TO_CHAR(pay.createdAt, 'YYYY-MM-DD')")
+        .orderBy('date', 'ASC')
+        .getRawMany(),
+    ]);
+
+    // ── Top states by property count ──
+    const topStates = await propertyRepo().createQueryBuilder('p')
+      .select('p.state', 'state')
+      .addSelect('COUNT(*)::int', 'listingCount')
+      .addSelect("SUM(CASE WHEN p.status = 'rented' THEN 1 ELSE 0 END)::int", 'rentedCount')
+      .groupBy('p.state')
+      .orderBy('COUNT(*)', 'DESC')
+      .limit(6)
+      .getRawMany();
+
+    // ── Recent activity (bookings + new listings) ──
+    const [recentBookings, recentListings] = await Promise.all([
+      bookingRepo().createQueryBuilder('b')
+        .leftJoin('b.tenant', 'tenant')
+        .addSelect(['tenant.firstName', 'tenant.lastName'])
+        .leftJoin('b.property', 'property')
+        .addSelect(['property.title', 'property.city', 'property.state'])
+        .orderBy('b.createdAt', 'DESC')
+        .take(5)
+        .getMany(),
+
+      propertyRepo().createQueryBuilder('p')
+        .leftJoin('p.owner', 'owner')
+        .addSelect(['owner.firstName', 'owner.lastName'])
+        .orderBy('p.createdAt', 'DESC')
+        .take(5)
+        .getMany(),
+    ]);
+
+    const recentActivity = [
+      ...recentBookings.map(b => ({
+        id: b.id,
+        userName: `${b.tenant?.firstName || ''} ${b.tenant?.lastName || ''}`.trim(),
+        userRole: 'Tenant',
+        propertyTitle: b.property?.title || '-',
+        propertyLocation: `${b.property?.city || ''}, ${b.property?.state || ''}`,
+        action: 'Inspection Request',
+        date: b.createdAt,
+        status: b.status,
+      })),
+      ...recentListings.map(p => ({
+        id: p.id,
+        userName: `${p.owner?.firstName || ''} ${p.owner?.lastName || ''}`.trim(),
+        userRole: 'Landlord',
+        propertyTitle: p.title,
+        propertyLocation: `${p.city || ''}, ${p.state || ''}`,
+        action: 'Listed Property',
+        date: p.createdAt,
+        status: p.status === PropertyStatus.ACTIVE ? 'active' : 'pending',
+      })),
+    ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+     .slice(0, 10);
+
     return {
       users: { total: totalUsers, propertyOwners: totalOwners, admins: totalAdmins },
       properties: { total: totalProperties, active: activeProperties, pendingReview: pendingProperties },
       bookings: totalBookings,
-      agreements: totalAgreements,
+      invoices: totalInvoices,
       revenue: {
         total: parseFloat(revenueResult?.totalRevenue || '0'),
         commission: parseFloat(revenueResult?.totalCommission || '0'),
       },
+      trends: {
+        listings: listingTrends,
+        bookings: bookingTrends,
+        payments: paymentTrends,
+      },
+      topStates,
+      recentActivity,
     };
   }
 
@@ -236,6 +333,100 @@ export class AdminService {
     return userRepo().save(user);
   }
 
+  async resetUserPassword(userId: string): Promise<void> {
+    const user = await userRepo().findOne({ where: { id: userId } });
+    if (!user) throw ApiError.notFound('User not found');
+
+    const newPassword = crypto.randomBytes(6).toString('base64url'); // ~8 chars
+    user.password = await bcrypt.hash(newPassword, 12);
+    await userRepo().save(user);
+
+    await emailService.sendAdminPasswordReset(user.email, user.firstName, newPassword);
+  }
+
+  // ═══════════════════════════════════════════════
+  // USER SUB-RESOURCES (for admin user detail page)
+  // ═══════════════════════════════════════════════
+
+  async getUserProperties(userId: string, query: PaginationQuery & { status?: PropertyStatus }): Promise<PaginatedResponse<Property>> {
+    const qb = propertyRepo()
+      .createQueryBuilder('p')
+      .leftJoinAndSelect('p.images', 'img')
+      .where('p.ownerId = :userId', { userId });
+
+    if (query.status) {
+      qb.andWhere('p.status = :status', { status: query.status });
+    }
+
+    return paginate(qb, { ...query, sort: query.sort || 'createdAt', order: query.order || 'DESC' });
+  }
+
+  async getUserBookings(userId: string, query: PaginationQuery & { status?: BookingStatus }): Promise<PaginatedResponse<Booking>> {
+    const qb = bookingRepo()
+      .createQueryBuilder('b')
+      .leftJoinAndSelect('b.property', 'p')
+      .leftJoinAndSelect('p.images', 'img')
+      .leftJoinAndSelect('b.tenant', 'tenant')
+      .leftJoinAndSelect('b.owner', 'owner')
+      .where('(b.tenantId = :userId OR b.ownerId = :userId)', { userId });
+
+    if (query.status) {
+      qb.andWhere('b.status = :status', { status: query.status });
+    }
+
+    return paginate(qb, { ...query, sort: query.sort || 'createdAt', order: query.order || 'DESC' });
+  }
+
+  async getAllInvoices(query: PaginationQuery & { status?: InvoiceStatus; search?: string }): Promise<PaginatedResponse<Invoice>> {
+    const qb = invoiceRepo()
+      .createQueryBuilder('a')
+      .leftJoinAndSelect('a.property', 'p')
+      .leftJoinAndSelect('p.images', 'pimg')
+      .leftJoinAndSelect('a.tenant', 'tenant')
+      .leftJoinAndSelect('a.owner', 'owner');
+
+    if (query.status) {
+      qb.andWhere('a.status = :status', { status: query.status });
+    }
+    if (query.search) {
+      qb.andWhere('(p.title ILIKE :search OR p.address ILIKE :search OR tenant."firstName" ILIKE :search OR tenant."lastName" ILIKE :search OR owner."firstName" ILIKE :search OR owner."lastName" ILIKE :search)', { search: `%${query.search}%` });
+    }
+
+    return paginate(qb, { ...query, sort: query.sort || 'createdAt', order: query.order || 'DESC' });
+  }
+
+  async getUserInvoices(userId: string, query: PaginationQuery & { status?: InvoiceStatus }): Promise<PaginatedResponse<Invoice>> {
+    const qb = invoiceRepo()
+      .createQueryBuilder('a')
+      .leftJoinAndSelect('a.property', 'p')
+      .leftJoinAndSelect('a.tenant', 'tenant')
+      .leftJoinAndSelect('a.owner', 'owner')
+      .where('(a.tenantId = :userId OR a.ownerId = :userId)', { userId });
+
+    if (query.status) {
+      qb.andWhere('a.status = :status', { status: query.status });
+    }
+
+    return paginate(qb, { ...query, sort: query.sort || 'createdAt', order: query.order || 'DESC' });
+  }
+
+  async getUserPayments(userId: string, query: PaginationQuery & { status?: PaymentStatus }): Promise<PaginatedResponse<Payment>> {
+    const qb = paymentRepo()
+      .createQueryBuilder('p')
+      .leftJoinAndSelect('p.property', 'prop')
+      .where('p.userId = :userId', { userId });
+
+    if (query.status) {
+      qb.andWhere('p.status = :status', { status: query.status });
+    }
+
+    return paginate(qb, { ...query, sort: query.sort || 'createdAt', order: query.order || 'DESC' });
+  }
+
+  // ═══════════════════════════════════════════════
+  // PROPERTY MODERATION
+  // ═══════════════════════════════════════════════
+
   async getPendingProperties(query: PaginationQuery): Promise<PaginatedResponse<Property>> {
     const qb = propertyRepo()
       .createQueryBuilder('p')
@@ -277,13 +468,69 @@ export class AdminService {
     return propertyRepo().save(property);
   }
 
-  async getAllPayments(query: PaginationQuery): Promise<PaginatedResponse<Payment>> {
+  async getAllPayments(query: PaginationQuery & { status?: PaymentStatus; search?: string }): Promise<PaginatedResponse<Payment>> {
     const qb = paymentRepo()
       .createQueryBuilder('p')
       .leftJoinAndSelect('p.user', 'user')
       .leftJoinAndSelect('p.property', 'prop');
 
+    if (query.status) qb.andWhere('p.status = :status', { status: query.status });
+    if (query.search) {
+      qb.andWhere(
+        '(p.reference ILIKE :s OR p.paystackReference ILIKE :s OR user.firstName ILIKE :s OR user.lastName ILIKE :s)',
+        { s: `%${query.search}%` },
+      );
+    }
+
     return paginate(qb, { ...query, sort: query.sort || 'createdAt', order: query.order || 'DESC' });
+  }
+
+  async getPaymentStats() {
+    const totals = await paymentRepo()
+      .createQueryBuilder('p')
+      .select('SUM(p.amount)', 'totalEarnings')
+      .addSelect('SUM(p.commission)', 'totalCommission')
+      .addSelect('SUM(p.ownerAmount)', 'netReceived')
+      .where('p.status = :status', { status: PaymentStatus.SUCCESS })
+      .getRawOne();
+
+    // Monthly income trend (last 12 months)
+    const incomeTrend = await paymentRepo()
+      .createQueryBuilder('p')
+      .select("TO_CHAR(p.createdAt, 'YYYY-MM')", 'month')
+      .addSelect('SUM(p.amount)', 'totalEarnings')
+      .addSelect('SUM(p.ownerAmount)', 'netReceived')
+      .where('p.status = :status', { status: PaymentStatus.SUCCESS })
+      .andWhere("p.createdAt >= NOW() - INTERVAL '12 months'")
+      .groupBy("TO_CHAR(p.createdAt, 'YYYY-MM')")
+      .orderBy('month', 'ASC')
+      .getRawMany();
+
+    // Top earning landlords
+    const topLandlords = await paymentRepo()
+      .createQueryBuilder('p')
+      .leftJoin('p.property', 'prop')
+      .leftJoin('prop.owner', 'owner')
+      .select('owner.id', 'id')
+      .addSelect("CONCAT(owner.firstName, ' ', owner.lastName)", 'name')
+      .addSelect('COUNT(DISTINCT prop.id)::int', 'propertyCount')
+      .addSelect('SUM(p.ownerAmount)', 'totalEarned')
+      .where('p.status = :status', { status: PaymentStatus.SUCCESS })
+      .andWhere('owner.id IS NOT NULL')
+      .groupBy('owner.id')
+      .addGroupBy('owner.firstName')
+      .addGroupBy('owner.lastName')
+      .orderBy('SUM(p.ownerAmount)', 'DESC')
+      .limit(5)
+      .getRawMany();
+
+    return {
+      totalEarnings: parseFloat(totals?.totalEarnings || '0'),
+      totalCommission: parseFloat(totals?.totalCommission || '0'),
+      netReceived: parseFloat(totals?.netReceived || '0'),
+      incomeTrend,
+      topLandlords,
+    };
   }
 
   async getPropertyById(propertyId: string): Promise<Property> {

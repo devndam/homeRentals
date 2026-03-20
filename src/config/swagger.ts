@@ -16,7 +16,7 @@ export const swaggerDocument = {
     { name: 'Users', description: 'User profiles & preferences' },
     { name: 'Properties', description: 'Property listings CRUD' },
     { name: 'Bookings', description: 'Inspection booking workflow' },
-    { name: 'Agreements', description: 'Rental agreements & signing' },
+    { name: 'Invoices', description: 'Rental invoices & payment flow' },
     { name: 'Payments', description: 'Paystack payments & webhooks' },
     { name: 'Admin', description: 'Admin dashboard & moderation' },
     { name: 'Wallet', description: 'Property owner wallet & withdrawals' },
@@ -277,32 +277,42 @@ export const swaggerDocument = {
         },
       },
 
-      // ─── Agreement ─────────────────────────
-      Agreement: {
+      // ─── Invoice ─────────────────────────
+      Invoice: {
         type: 'object',
         properties: {
           id: { type: 'string', format: 'uuid' },
           tenantId: { type: 'string', format: 'uuid' },
           ownerId: { type: 'string', format: 'uuid' },
           propertyId: { type: 'string', format: 'uuid' },
-          status: { type: 'string', enum: ['draft', 'pending_tenant', 'pending_owner', 'active', 'expired', 'terminated'] },
-          rentAmount: { type: 'number' },
+          status: { type: 'string', enum: ['requested', 'draft', 'sent', 'paid', 'agreement_sent', 'completed', 'expired', 'cancelled', 'terminated'] },
+          rentAmount: { type: 'number', nullable: true },
           rentPeriod: { type: 'string' },
           cautionDeposit: { type: 'number', nullable: true },
-          startDate: { type: 'string', format: 'date' },
-          endDate: { type: 'string', format: 'date' },
+          startDate: { type: 'string', format: 'date', nullable: true },
+          endDate: { type: 'string', format: 'date', nullable: true },
           tenantSignedAt: { type: 'string', format: 'date-time', nullable: true },
-          ownerSignedAt: { type: 'string', format: 'date-time', nullable: true },
           pdfUrl: { type: 'string', nullable: true },
+          requestedAt: { type: 'string', format: 'date-time', nullable: true },
           createdAt: { type: 'string', format: 'date-time' },
         },
       },
-      CreateAgreementRequest: {
+      RequestInvoiceRequest: {
+        type: 'object',
+        required: ['propertyId', 'bookingId'],
+        properties: {
+          propertyId: { type: 'string', format: 'uuid' },
+          bookingId: { type: 'string', format: 'uuid' },
+        },
+      },
+      CreateInvoiceRequest: {
         type: 'object',
         required: ['tenantId', 'propertyId', 'rentAmount', 'startDate', 'endDate'],
         properties: {
+          invoiceId: { type: 'string', format: 'uuid', description: 'Existing requested invoice to fill' },
           tenantId: { type: 'string', format: 'uuid' },
           propertyId: { type: 'string', format: 'uuid' },
+          bookingId: { type: 'string', format: 'uuid' },
           rentAmount: { type: 'number', example: 2500000 },
           rentPeriod: { type: 'string', default: 'yearly' },
           cautionDeposit: { type: 'number', example: 500000 },
@@ -311,7 +321,7 @@ export const swaggerDocument = {
           additionalTerms: { type: 'string' },
         },
       },
-      SignAgreementRequest: {
+      SignInvoiceRequest: {
         type: 'object',
         required: ['signature'],
         properties: {
@@ -326,7 +336,7 @@ export const swaggerDocument = {
           id: { type: 'string', format: 'uuid' },
           reference: { type: 'string' },
           userId: { type: 'string', format: 'uuid' },
-          type: { type: 'string', enum: ['rent', 'deposit', 'commission', 'agreement_fee'] },
+          type: { type: 'string', enum: ['rent', 'deposit', 'commission', 'invoice_fee'] },
           status: { type: 'string', enum: ['pending', 'success', 'failed', 'refunded'] },
           amount: { type: 'number' },
           commission: { type: 'number' },
@@ -340,8 +350,8 @@ export const swaggerDocument = {
         required: ['type', 'amount'],
         properties: {
           propertyId: { type: 'string', format: 'uuid' },
-          agreementId: { type: 'string', format: 'uuid' },
-          type: { type: 'string', enum: ['rent', 'deposit', 'commission', 'agreement_fee'] },
+          invoiceId: { type: 'string', format: 'uuid' },
+          type: { type: 'string', enum: ['rent', 'deposit', 'commission', 'invoice_fee'] },
           amount: { type: 'number', minimum: 100, example: 2500000 },
           description: { type: 'string', example: 'Annual rent payment' },
         },
@@ -373,7 +383,7 @@ export const swaggerDocument = {
           password: { type: 'string', minLength: 8, example: 'AdminPass@123' },
           permissions: {
             type: 'array',
-            items: { type: 'string', enum: ['manage_admins', 'view_users', 'toggle_user_status', 'verify_user', 'view_properties', 'approve_property', 'reject_property', 'suspend_property', 'view_payments', 'process_refund', 'view_agreements', 'view_dashboard', 'manage_disputes', 'manage_kyc', 'manage_wallets'] },
+            items: { type: 'string', enum: ['manage_admins', 'view_users', 'toggle_user_status', 'verify_user', 'view_properties', 'approve_property', 'reject_property', 'suspend_property', 'view_payments', 'process_refund', 'view_invoices', 'view_dashboard', 'manage_disputes', 'manage_kyc', 'manage_wallets'] },
             example: ['view_dashboard', 'view_users', 'view_properties', 'approve_property'],
           },
           isSuperAdmin: { type: 'boolean', default: false },
@@ -385,7 +395,7 @@ export const swaggerDocument = {
         properties: {
           permissions: {
             type: 'array',
-            items: { type: 'string', enum: ['manage_admins', 'view_users', 'toggle_user_status', 'verify_user', 'view_properties', 'approve_property', 'reject_property', 'suspend_property', 'view_payments', 'process_refund', 'view_agreements', 'view_dashboard', 'manage_disputes', 'manage_kyc', 'manage_wallets'] },
+            items: { type: 'string', enum: ['manage_admins', 'view_users', 'toggle_user_status', 'verify_user', 'view_properties', 'approve_property', 'reject_property', 'suspend_property', 'view_payments', 'process_refund', 'view_invoices', 'view_dashboard', 'manage_disputes', 'manage_kyc', 'manage_wallets'] },
             example: ['view_dashboard', 'view_users', 'view_properties'],
           },
         },
@@ -448,7 +458,7 @@ export const swaggerDocument = {
             },
           },
           bookings: { type: 'integer' },
-          agreements: { type: 'integer' },
+          invoices: { type: 'integer' },
           revenue: {
             type: 'object',
             properties: {
@@ -796,58 +806,75 @@ export const swaggerDocument = {
       },
     },
 
-    // ═══ AGREEMENTS ═════════════════════════════
-    '/agreements': {
+    // ═══ INVOICES ═════════════════════════════
+    '/invoices': {
       get: {
-        tags: ['Agreements'],
-        summary: 'Get my agreements',
+        tags: ['Invoices'],
+        summary: 'Get my invoices',
         security: [{ BearerAuth: [] }],
-        responses: { 200: { description: 'User agreements' } },
+        responses: { 200: { description: 'User invoices' } },
       },
       post: {
-        tags: ['Agreements'],
-        summary: 'Create a rental agreement (property owner)',
+        tags: ['Invoices'],
+        summary: 'Create an invoice (property owner)',
         security: [{ BearerAuth: [] }],
-        requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/CreateAgreementRequest' } } } },
-        responses: { 201: { description: 'Agreement created, pending tenant signature' } },
+        requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/CreateInvoiceRequest' } } } },
+        responses: { 201: { description: 'Invoice created' } },
       },
     },
-    '/agreements/{id}': {
+    '/invoices/request': {
+      post: {
+        tags: ['Invoices'],
+        summary: 'Request an invoice (tenant)',
+        security: [{ BearerAuth: [] }],
+        requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/RequestInvoiceRequest' } } } },
+        responses: { 201: { description: 'Invoice requested' } },
+      },
+    },
+    '/invoices/{id}': {
       get: {
-        tags: ['Agreements'],
-        summary: 'Get agreement details',
+        tags: ['Invoices'],
+        summary: 'Get invoice details',
         security: [{ BearerAuth: [] }],
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
-        responses: { 200: { description: 'Agreement details' } },
+        responses: { 200: { description: 'Invoice details' } },
       },
     },
-    '/agreements/{id}/sign/tenant': {
+    '/invoices/{id}/send': {
       patch: {
-        tags: ['Agreements'],
-        summary: 'Sign agreement as tenant',
+        tags: ['Invoices'],
+        summary: 'Send invoice to tenant (property owner)',
         security: [{ BearerAuth: [] }],
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
-        requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/SignAgreementRequest' } } } },
-        responses: { 200: { description: 'Signed by tenant, pending owner' } },
+        responses: { 200: { description: 'Invoice sent to tenant' } },
       },
     },
-    '/agreements/{id}/sign/owner': {
+    '/invoices/{id}/sign': {
       patch: {
-        tags: ['Agreements'],
-        summary: 'Sign agreement as property owner (generates PDF)',
+        tags: ['Invoices'],
+        summary: 'Sign agreement as tenant (after payment)',
         security: [{ BearerAuth: [] }],
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
-        requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/SignAgreementRequest' } } } },
-        responses: { 200: { description: 'Agreement fully signed, PDF generated' } },
+        requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/SignInvoiceRequest' } } } },
+        responses: { 200: { description: 'Agreement signed, rental completed' } },
       },
     },
-    '/agreements/{id}/terminate': {
+    '/invoices/{id}/cancel': {
       patch: {
-        tags: ['Agreements'],
-        summary: 'Terminate an active agreement (property owner)',
+        tags: ['Invoices'],
+        summary: 'Cancel an invoice (before payment)',
         security: [{ BearerAuth: [] }],
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
-        responses: { 200: { description: 'Agreement terminated' } },
+        responses: { 200: { description: 'Invoice cancelled' } },
+      },
+    },
+    '/invoices/{id}/terminate': {
+      patch: {
+        tags: ['Invoices'],
+        summary: 'Terminate a completed rental (property owner)',
+        security: [{ BearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        responses: { 200: { description: 'Rental terminated' } },
       },
     },
 

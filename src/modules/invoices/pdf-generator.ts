@@ -1,12 +1,12 @@
 import PDFDocument from 'pdfkit';
 import fs from 'fs';
 import path from 'path';
-import { Agreement } from './agreement.entity';
+import { Invoice } from './invoice.entity';
 
-export async function generateAgreementPdf(agreement: Agreement): Promise<string> {
+export async function generateAgreementPdf(invoice: Invoice): Promise<string> {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: 50 });
-    const filename = `agreement-${agreement.id}.pdf`;
+    const filename = `agreement-${invoice.id}.pdf`;
     const filepath = path.join(process.cwd(), 'uploads', filename);
     const stream = fs.createWriteStream(filepath);
 
@@ -15,41 +15,41 @@ export async function generateAgreementPdf(agreement: Agreement): Promise<string
     // Header
     doc.fontSize(20).font('Helvetica-Bold').text('RENTAL AGREEMENT', { align: 'center' });
     doc.moveDown();
-    doc.fontSize(10).font('Helvetica').text(`Agreement ID: ${agreement.id}`, { align: 'center' });
+    doc.fontSize(10).font('Helvetica').text(`Invoice ID: ${invoice.id}`, { align: 'center' });
     doc.moveDown(2);
 
     // Parties
     doc.fontSize(14).font('Helvetica-Bold').text('PARTIES');
     doc.moveDown(0.5);
     doc.fontSize(11).font('Helvetica');
-    doc.text(`Property Owner: ${agreement.owner?.firstName} ${agreement.owner?.lastName}`);
-    doc.text(`Tenant: ${agreement.tenant?.firstName} ${agreement.tenant?.lastName}`);
+    doc.text(`Property Owner: ${invoice.owner?.firstName} ${invoice.owner?.lastName}`);
+    doc.text(`Tenant: ${invoice.tenant?.firstName} ${invoice.tenant?.lastName}`);
     doc.moveDown();
 
     // Property
     doc.fontSize(14).font('Helvetica-Bold').text('PROPERTY');
     doc.moveDown(0.5);
     doc.fontSize(11).font('Helvetica');
-    doc.text(`Title: ${agreement.property?.title}`);
-    doc.text(`Address: ${agreement.property?.address}, ${agreement.property?.city}, ${agreement.property?.state}`);
+    doc.text(`Title: ${invoice.property?.title}`);
+    doc.text(`Address: ${invoice.property?.address}, ${invoice.property?.city}, ${invoice.property?.state}`);
     doc.moveDown();
 
     // Terms
     doc.fontSize(14).font('Helvetica-Bold').text('TERMS');
     doc.moveDown(0.5);
     doc.fontSize(11).font('Helvetica');
-    doc.text(`Rent Amount: NGN ${Number(agreement.rentAmount).toLocaleString()} (${agreement.rentPeriod})`);
-    if (agreement.cautionDeposit) {
-      doc.text(`Caution Deposit: NGN ${Number(agreement.cautionDeposit).toLocaleString()}`);
+    doc.text(`Rent Amount: NGN ${Number(invoice.rentAmount).toLocaleString()} (${invoice.rentPeriod})`);
+    if (invoice.cautionDeposit) {
+      doc.text(`Caution Deposit: NGN ${Number(invoice.cautionDeposit).toLocaleString()}`);
     }
-    doc.text(`Start Date: ${agreement.startDate}`);
-    doc.text(`End Date: ${agreement.endDate}`);
+    doc.text(`Start Date: ${invoice.startDate}`);
+    doc.text(`End Date: ${invoice.endDate}`);
     doc.moveDown();
 
-    if (agreement.additionalTerms) {
+    if (invoice.additionalTerms) {
       doc.fontSize(14).font('Helvetica-Bold').text('ADDITIONAL TERMS');
       doc.moveDown(0.5);
-      doc.fontSize(11).font('Helvetica').text(agreement.additionalTerms);
+      doc.fontSize(11).font('Helvetica').text(invoice.additionalTerms);
       doc.moveDown();
     }
 
@@ -58,11 +58,8 @@ export async function generateAgreementPdf(agreement: Agreement): Promise<string
     doc.moveDown(0.5);
     doc.fontSize(11).font('Helvetica');
 
-    if (agreement.tenantSignedAt) {
-      doc.text(`Tenant Signed: ${agreement.tenantSignedAt.toISOString()}`);
-    }
-    if (agreement.ownerSignedAt) {
-      doc.text(`Property Owner Signed: ${agreement.ownerSignedAt.toISOString()}`);
+    if (invoice.tenantSignedAt) {
+      doc.text(`Tenant Signed: ${invoice.tenantSignedAt.toISOString()}`);
     }
 
     doc.moveDown(2);

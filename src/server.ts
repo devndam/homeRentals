@@ -1,10 +1,12 @@
 import 'reflect-metadata';
 import fs from 'fs';
 import path from 'path';
+import cron from 'node-cron';
 import { AppDataSource } from './config/data-source';
 import { connectRedis } from './config/redis';
 import { env } from './config/env';
 import app from './app';
+import { RentReminderService } from './modules/invoices/rent-reminder.service';
 
 // Ensure uploads directory exists
 fs.mkdirSync(path.join(process.cwd(), 'uploads'), { recursive: true });
@@ -17,6 +19,19 @@ async function bootstrap() {
 
     // Connect to Redis (non-blocking — app works without it)
     await connectRedis();
+
+    // Daily rent reminder cron job at 8:00 AM
+    cron.schedule('0 8 * * *', async () => {
+      console.log('[Cron] Running daily rent reminders...');
+      try {
+        const reminderService = new RentReminderService();
+        const result = await reminderService.processReminders();
+        console.log(`[Cron] Rent reminders done. ${result.sent} email(s) sent.`);
+      } catch (err) {
+        console.error('[Cron] Rent reminder error:', err);
+      }
+    });
+    console.log('[Cron] Rent reminder job scheduled (daily at 8:00 AM)');
 
     // Start server
     app.listen(env.port, () => {

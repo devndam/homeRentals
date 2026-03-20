@@ -1,10 +1,11 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn,
+  Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, JoinColumn,
   CreateDateColumn, UpdateDateColumn,
 } from 'typeorm';
 import { BookingStatus } from '../../types';
 import { User } from '../users/user.entity';
 import { Property } from '../properties/property.entity';
+import { Invoice } from '../invoices/invoice.entity';
 
 @Entity('bookings')
 export class Booking {
@@ -49,6 +50,9 @@ export class Booking {
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'ownerId' })
   owner!: User;
+
+  @OneToMany(() => Invoice, (i) => i.booking)
+  invoices?: Invoice[];
 
   @CreateDateColumn()
   createdAt!: Date;

@@ -55,6 +55,7 @@ export class BookingService {
       .leftJoinAndSelect('b.property', 'p')
       .leftJoinAndSelect('p.images', 'img', 'img.isPrimary = true')
       .leftJoinAndSelect('b.owner', 'owner')
+      .leftJoinAndSelect('b.invoices', 'inv')
       .where('b.tenantId = :tenantId', { tenantId });
 
     this.applyBookingFilters(qb, filters);
@@ -68,6 +69,7 @@ export class BookingService {
       .leftJoinAndSelect('b.property', 'p')
       .leftJoinAndSelect('p.images', 'img', 'img.isPrimary = true')
       .leftJoinAndSelect('b.tenant', 'tenant')
+      .leftJoinAndSelect('b.invoices', 'inv')
       .where('b.ownerId = :ownerId', { ownerId });
 
     this.applyBookingFilters(qb, filters);
@@ -116,15 +118,15 @@ export class BookingService {
     }
 
     booking.inspectionDate = new Date(dto.inspectionDate);
-    booking.status = BookingStatus.APPROVED;
+    booking.status = BookingStatus.INSPECTION_SCHEDULED;
     return bookingRepo().save(booking);
   }
 
   async complete(bookingId: string, ownerId: string, dto: CompleteBookingDto): Promise<Booking> {
     const booking = await bookingRepo().findOne({
-      where: { id: bookingId, ownerId, status: BookingStatus.APPROVED },
+      where: { id: bookingId, ownerId, status: BookingStatus.INSPECTION_SCHEDULED },
     });
-    if (!booking) throw ApiError.notFound('Booking not found or not approved');
+    if (!booking) throw ApiError.notFound('Booking not found or inspection not scheduled');
 
     booking.status = dto.status;
     return bookingRepo().save(booking);

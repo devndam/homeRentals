@@ -12,6 +12,7 @@ const ctrl = new UserController();
 router.use(authenticate as any);
 
 router.get('/dashboard', asyncHandler(ctrl.getDashboard as any));
+router.get('/search', asyncHandler(ctrl.searchUsers as any));
 router.get('/profile', asyncHandler(ctrl.getProfile as any));
 router.patch('/profile', validateBody(UpdateProfileDto), asyncHandler(ctrl.updateProfile as any));
 router.put('/bank-details', requirePropertyOwner() as any, validateBody(UpdateBankDetailsDto), asyncHandler(ctrl.updateBankDetails as any));

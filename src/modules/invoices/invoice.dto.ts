@@ -1,13 +1,29 @@
 import { IsString, IsNotEmpty, IsOptional, IsDateString, IsNumber, IsUUID, Min, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
-import { AgreementStatus } from '../../types';
+import { InvoiceStatus } from '../../types';
 
-export class CreateAgreementDto {
+export class RequestInvoiceDto {
+  @IsUUID()
+  propertyId!: string;
+
+  @IsUUID()
+  bookingId!: string;
+}
+
+export class CreateInvoiceDto {
+  @IsUUID()
+  @IsOptional()
+  invoiceId?: string;
+
   @IsUUID()
   tenantId!: string;
 
   @IsUUID()
   propertyId!: string;
+
+  @IsUUID()
+  @IsOptional()
+  bookingId?: string;
 
   @IsNumber()
   @Min(0)
@@ -34,13 +50,13 @@ export class CreateAgreementDto {
   additionalTerms?: string;
 }
 
-export class SignAgreementDto {
+export class SignInvoiceDto {
   @IsString()
   @IsNotEmpty()
-  signature!: string; // base64 encoded signature image
+  signature!: string;
 }
 
-export class AgreementFilterDto {
+export class InvoiceFilterDto {
   @IsOptional()
   @Type(() => Number)
   page?: number;
@@ -50,8 +66,8 @@ export class AgreementFilterDto {
   limit?: number;
 
   @IsOptional()
-  @IsEnum(AgreementStatus)
-  status?: AgreementStatus;
+  @IsEnum(InvoiceStatus)
+  status?: InvoiceStatus;
 
   @IsOptional()
   @IsString()

@@ -4,7 +4,7 @@ import {
 } from 'typeorm';
 import { Property } from '../properties/property.entity';
 import { Booking } from '../bookings/booking.entity';
-import { Agreement } from '../agreements/agreement.entity';
+import { Invoice } from '../invoices/invoice.entity';
 import { Payment } from '../payments/payment.entity';
 import { Wallet } from '../wallet/wallet.entity';
 
@@ -96,11 +96,11 @@ export class User {
   @OneToMany(() => Booking, (b) => b.tenant)
   bookings!: Booking[];
 
-  @OneToMany(() => Agreement, (a) => a.tenant)
-  tenantAgreements!: Agreement[];
+  @OneToMany(() => Invoice, (a) => a.tenant)
+  tenantInvoices!: Invoice[];
 
-  @OneToMany(() => Agreement, (a) => a.owner)
-  ownerAgreements!: Agreement[];
+  @OneToMany(() => Invoice, (a) => a.owner)
+  ownerInvoices!: Invoice[];
 
   @OneToMany(() => Payment, (p) => p.user)
   payments!: Payment[];

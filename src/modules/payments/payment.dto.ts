@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsEnum, IsUUID, Min, IsDateString } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, IsEnum, IsUUID, IsDateString } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PaymentStatus, PaymentType } from '../../types';
 
@@ -9,13 +9,12 @@ export class InitiatePaymentDto {
 
   @IsUUID()
   @IsOptional()
-  agreementId?: string;
+  invoiceId?: string;
 
   @IsEnum(PaymentType)
   type!: PaymentType;
 
   @IsNumber()
-  @Min(100) // Minimum NGN 100
   @Type(() => Number)
   amount!: number;
 
