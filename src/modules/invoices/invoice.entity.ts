@@ -32,6 +32,9 @@ export class Invoice {
   @Column({ default: 'yearly' })
   rentPeriod!: string;
 
+  @Column({ type: 'int', default: 1 })
+  units!: number;
+
   @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
   cautionDeposit?: number;
 

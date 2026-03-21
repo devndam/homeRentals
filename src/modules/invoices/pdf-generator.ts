@@ -39,6 +39,9 @@ export async function generateAgreementPdf(invoice: Invoice): Promise<string> {
     doc.moveDown(0.5);
     doc.fontSize(11).font('Helvetica');
     doc.text(`Rent Amount: NGN ${Number(invoice.rentAmount).toLocaleString()} (${invoice.rentPeriod})`);
+    if (invoice.units > 1) {
+      doc.text(`Number of Units: ${invoice.units}`);
+    }
     if (invoice.cautionDeposit) {
       doc.text(`Caution Deposit: NGN ${Number(invoice.cautionDeposit).toLocaleString()}`);
     }

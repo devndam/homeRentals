@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsDateString, IsNumber, IsUUID, Min } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsDateString, IsNumber, IsUUID, IsInt, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class RequestInvoiceDto {
@@ -7,6 +7,12 @@ export class RequestInvoiceDto {
 
   @IsUUID()
   bookingId!: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  units?: number;
 }
 
 export class CreateInvoiceDto {

@@ -30,6 +30,7 @@ export enum BookingStatus {
   COMPLETED = 'completed',
   CANCELLED = 'cancelled',
   NO_SHOW = 'no_show',
+  RENTED = 'rented',
 }
 
 export enum InvoiceStatus {

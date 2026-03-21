@@ -14,6 +14,7 @@ router.use(authenticate as any);
 router.post('/', validateBody(CreateBookingDto), asyncHandler(ctrl.create as any));
 router.get('/tenant', validateQuery(BookingFilterDto), asyncHandler(ctrl.getTenantBookings as any));
 router.patch('/:id/cancel', asyncHandler(ctrl.cancel as any));
+router.delete('/:id', asyncHandler(ctrl.delete as any));
 
 // Property Owner
 router.get('/owner', requirePropertyOwner() as any, validateQuery(BookingFilterDto), asyncHandler(ctrl.getOwnerBookings as any));

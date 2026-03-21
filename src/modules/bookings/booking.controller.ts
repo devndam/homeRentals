@@ -41,6 +41,11 @@ export class BookingController {
     return sendSuccess(res, booking, 'Booking cancelled');
   }
 
+  async delete(req: AuthenticatedRequest, res: Response) {
+    await bookingService.delete(req.params.id, req.user.sub);
+    return sendSuccess(res, null, 'Booking deleted');
+  }
+
   async findById(req: AuthenticatedRequest, res: Response) {
     const booking = await bookingService.findById(req.params.id);
     return sendSuccess(res, booking);

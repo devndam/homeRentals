@@ -33,8 +33,11 @@ export class PaymentService {
         const property = await AppDataSource.getRepository('Property').findOne({
           where: { id: dto.propertyId },
         });
-        if (property && property.availableUnits < 1) {
-          throw ApiError.badRequest('No units available for this property');
+        const requiredUnits = invoice.units || 1;
+        if (property && property.availableUnits < requiredUnits) {
+          throw ApiError.badRequest(
+            `Not enough units available. Required: ${requiredUnits}, Available: ${property.availableUnits}`,
+          );
         }
       }
     }

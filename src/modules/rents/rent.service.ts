@@ -3,8 +3,9 @@ import { AppDataSource } from '../../config/data-source';
 import { Rent } from './rent.entity';
 import { Invoice } from '../invoices/invoice.entity';
 import { Property } from '../properties/property.entity';
+import { Booking } from '../bookings/booking.entity';
 import { ApiError } from '../../utils/api-error';
-import { RentStatus, InvoiceStatus, InvoiceType, PropertyStatus, PaginatedResponse } from '../../types';
+import { RentStatus, InvoiceStatus, InvoiceType, PropertyStatus, BookingStatus, PaginatedResponse } from '../../types';
 import { RentFilterDto, SignRentAgreementDto } from './rent.dto';
 import { paginate } from '../../utils/pagination';
 import { generateRentAgreementPdf } from './rent-pdf-generator';
@@ -12,6 +13,7 @@ import { generateRentAgreementPdf } from './rent-pdf-generator';
 const rentRepo = () => AppDataSource.getRepository(Rent);
 const invoiceRepo = () => AppDataSource.getRepository(Invoice);
 const propertyRepo = () => AppDataSource.getRepository(Property);
+const bookingRepo = () => AppDataSource.getRepository(Booking);
 
 export class RentService {
   /**
@@ -37,6 +39,7 @@ export class RentService {
       propertyId: invoice.propertyId,
       rentAmount: invoice.rentAmount,
       rentPeriod: invoice.rentPeriod,
+      units: invoice.units || 1,
       cautionDeposit: invoice.cautionDeposit || 0,
       startDate: todayStr,
       nextDueDate: nextDue,
@@ -55,14 +58,26 @@ export class RentService {
     // Decrement available units on property
     const property = await propertyRepo().findOne({ where: { id: invoice.propertyId } });
     if (!property) throw ApiError.notFound('Property not found');
-    if (property.availableUnits < 1) {
-      throw ApiError.badRequest('No units available for this property');
+    const unitsToDecrement = invoice.units || 1;
+    if (property.availableUnits < unitsToDecrement) {
+      throw ApiError.badRequest(
+        `Not enough units available. Required: ${unitsToDecrement}, Available: ${property.availableUnits}`,
+      );
     }
-    property.availableUnits -= 1;
+    property.availableUnits -= unitsToDecrement;
     if (property.availableUnits === 0) {
       property.status = PropertyStatus.RENTED;
     }
     await propertyRepo().save(property);
+
+    // Mark the associated booking as RENTED
+    if (invoice.bookingId) {
+      const booking = await bookingRepo().findOne({ where: { id: invoice.bookingId } });
+      if (booking) {
+        booking.status = BookingStatus.RENTED;
+        await bookingRepo().save(booking);
+      }
+    }
 
     // Generate agreement PDF
     try {
@@ -130,9 +145,9 @@ export class RentService {
       .andWhere('status = :sent', { sent: InvoiceStatus.SENT })
       .execute();
 
-    // Restore available unit (cap at totalUnits)
+    // Restore available units (cap at totalUnits)
     if (rent.property) {
-      rent.property.availableUnits = Math.min(rent.property.availableUnits + 1, rent.property.totalUnits);
+      rent.property.availableUnits = Math.min(rent.property.availableUnits + (rent.units || 1), rent.property.totalUnits);
       if (rent.property.status === PropertyStatus.RENTED) {
         rent.property.status = PropertyStatus.ACTIVE;
       }
@@ -166,7 +181,7 @@ export class RentService {
       .execute();
 
     if (rent.property) {
-      rent.property.availableUnits = Math.min(rent.property.availableUnits + 1, rent.property.totalUnits);
+      rent.property.availableUnits = Math.min(rent.property.availableUnits + (rent.units || 1), rent.property.totalUnits);
       if (rent.property.status === PropertyStatus.RENTED) {
         rent.property.status = PropertyStatus.ACTIVE;
       }
@@ -303,6 +318,7 @@ export class RentService {
         invoiceType: InvoiceType.RENEWAL,
         rentAmount: rent.rentAmount,
         rentPeriod: rent.rentPeriod,
+        units: rent.units || 1,
         cautionDeposit: 0,
         startDate: rent.nextDueDate,
         status: InvoiceStatus.SENT,

@@ -1,3 +1,4 @@
+import { LessThanOrEqual, In } from 'typeorm';
 import { AppDataSource } from '../../config/data-source';
 import { Booking } from './booking.entity';
 import { Property } from '../properties/property.entity';
@@ -133,9 +134,13 @@ export class BookingService {
 
   async complete(bookingId: string, ownerId: string, dto: CompleteBookingDto): Promise<Booking> {
     const booking = await bookingRepo().findOne({
-      where: { id: bookingId, ownerId, status: BookingStatus.INSPECTION_SCHEDULED },
+      where: { id: bookingId, ownerId },
     });
-    if (!booking) throw ApiError.notFound('Booking not found or inspection not scheduled');
+    if (!booking) throw ApiError.notFound('Booking not found');
+
+    if (booking.status !== BookingStatus.APPROVED && booking.status !== BookingStatus.INSPECTION_SCHEDULED) {
+      throw ApiError.badRequest('Booking must be approved or inspection scheduled to complete');
+    }
 
     booking.status = dto.status;
     return bookingRepo().save(booking);
@@ -154,6 +159,56 @@ export class BookingService {
 
     booking.status = BookingStatus.CANCELLED;
     return bookingRepo().save(booking);
+  }
+
+  async delete(bookingId: string, tenantId: string): Promise<void> {
+    const booking = await bookingRepo().findOne({
+      where: { id: bookingId, tenantId },
+    });
+    if (!booking) throw ApiError.notFound('Booking not found');
+
+    const deletableStatuses = [
+      BookingStatus.COMPLETED,
+      BookingStatus.CANCELLED,
+      BookingStatus.REJECTED,
+      BookingStatus.NO_SHOW,
+    ];
+    if (!deletableStatuses.includes(booking.status)) {
+      throw ApiError.badRequest('Only completed, cancelled, rejected, or no-show bookings can be deleted');
+    }
+
+    await bookingRepo().remove(booking);
+  }
+
+  /**
+   * Auto-cancel bookings where the inspection date passed 3+ days ago
+   * and the booking is still in a pre-completion status.
+   * Called by the daily cron job.
+   */
+  async cleanupStaleBookings(): Promise<{ cancelled: number }> {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 3);
+
+    const staleBookings = await bookingRepo().find({
+      where: {
+        inspectionDate: LessThanOrEqual(cutoff),
+        status: In([
+          BookingStatus.PENDING,
+          BookingStatus.APPROVED,
+          BookingStatus.INSPECTION_SCHEDULED,
+        ]),
+      },
+    });
+
+    for (const booking of staleBookings) {
+      booking.status = BookingStatus.CANCELLED;
+    }
+
+    if (staleBookings.length > 0) {
+      await bookingRepo().save(staleBookings);
+    }
+
+    return { cancelled: staleBookings.length };
   }
 
   async findById(id: string): Promise<Booking> {

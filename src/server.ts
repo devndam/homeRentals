@@ -8,6 +8,7 @@ import { env } from './config/env';
 import app from './app';
 import { RentReminderService } from './modules/invoices/rent-reminder.service';
 import { InvoiceService } from './modules/invoices/invoice.service';
+import { BookingService } from './modules/bookings/booking.service';
 
 // Ensure uploads directory exists
 fs.mkdirSync(path.join(process.cwd(), 'uploads'), { recursive: true });
@@ -34,6 +35,11 @@ async function bootstrap() {
         const reminderService = new RentReminderService();
         const reminderResult = await reminderService.processReminders();
         console.log(`[Cron] Rent reminders: ${reminderResult.sent} email(s) sent.`);
+
+        // Step 3: Auto-cancel stale bookings (inspection date passed 3+ days ago)
+        const bookingService = new BookingService();
+        const cleanupResult = await bookingService.cleanupStaleBookings();
+        console.log(`[Cron] Stale bookings cancelled: ${cleanupResult.cancelled}`);
       } catch (err) {
         console.error('[Cron] Daily rent job error:', err);
       }

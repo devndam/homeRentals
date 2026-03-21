@@ -33,8 +33,11 @@ export class InvoiceService {
     if (!property) throw ApiError.notFound('Property not found');
 
     // Check unit availability
-    if (property.availableUnits < 1) {
-      throw ApiError.badRequest('No units available for this property');
+    const requestedUnits = dto.units || 1;
+    if (property.availableUnits < requestedUnits) {
+      throw ApiError.badRequest(
+        `Not enough units available. Requested: ${requestedUnits}, Available: ${property.availableUnits}`,
+      );
     }
 
     // Check if tenant already has an active/pending invoice for this property
@@ -59,6 +62,7 @@ export class InvoiceService {
       rentAmount: property.price,
       rentPeriod: property.pricePeriod || 'yearly',
       cautionDeposit: fees.cautionDeposit,
+      units: requestedUnits,
       status: InvoiceStatus.REQUESTED,
       requestedAt: new Date(),
     });
@@ -134,8 +138,11 @@ export class InvoiceService {
     }
 
     // Re-check unit availability before sending
-    if (invoice.property && invoice.property.availableUnits < 1) {
-      throw ApiError.badRequest('No units available for this property');
+    const requiredUnits = invoice.units || 1;
+    if (invoice.property && invoice.property.availableUnits < requiredUnits) {
+      throw ApiError.badRequest(
+        `Not enough units available. Required: ${requiredUnits}, Available: ${invoice.property.availableUnits}`,
+      );
     }
 
     invoice.status = InvoiceStatus.SENT;
@@ -262,10 +269,10 @@ export class InvoiceService {
       .andWhere('status = :sent', { sent: InvoiceStatus.SENT })
       .execute();
 
-    // Restore available unit to property (cap at totalUnits)
+    // Restore available units to property (cap at totalUnits)
     const property = invoice.property;
     if (property) {
-      property.availableUnits = Math.min(property.availableUnits + 1, property.totalUnits);
+      property.availableUnits = Math.min(property.availableUnits + (invoice.units || 1), property.totalUnits);
       if (property.status === PropertyStatus.RENTED) {
         property.status = PropertyStatus.ACTIVE;
       }
@@ -347,10 +354,10 @@ export class InvoiceService {
       .andWhere('status = :sent', { sent: InvoiceStatus.SENT })
       .execute();
 
-    // Restore available unit to property (cap at totalUnits)
+    // Restore available units to property (cap at totalUnits)
     const property = invoice.property;
     if (property) {
-      property.availableUnits = Math.min(property.availableUnits + 1, property.totalUnits);
+      property.availableUnits = Math.min(property.availableUnits + (invoice.units || 1), property.totalUnits);
       if (property.status === PropertyStatus.RENTED) {
         property.status = PropertyStatus.ACTIVE;
       }
@@ -400,6 +407,7 @@ export class InvoiceService {
         bookingId: parent.bookingId,
         rentAmount: parent.rentAmount,
         rentPeriod: parent.rentPeriod,
+        units: parent.units || 1,
         cautionDeposit: 0,
         startDate: parent.nextRentDueDate,
         status: InvoiceStatus.SENT,
