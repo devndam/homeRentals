@@ -11,6 +11,7 @@ import { env } from '../../config/env';
 import { paginate } from '../../utils/pagination';
 import { WalletService } from '../wallet/wallet.service';
 import { SystemSettingsService } from '../settings/system-settings.service';
+import { RentService } from '../rents/rent.service';
 
 const paymentRepo = () => AppDataSource.getRepository(Payment);
 const userRepo = () => AppDataSource.getRepository(User);
@@ -18,11 +19,25 @@ const invoiceRepo = () => AppDataSource.getRepository(Invoice);
 const paystackService = new PaystackService();
 const walletService = new WalletService();
 const settingsService = new SystemSettingsService();
+const rentService = new RentService();
 
 export class PaymentService {
   async initiate(userId: string, dto: InitiatePaymentDto) {
     const user = await userRepo().findOne({ where: { id: userId } });
     if (!user) throw ApiError.notFound('User not found');
+
+    // Check unit availability for property-linked payments (initial rent)
+    if (dto.propertyId && dto.invoiceId) {
+      const invoice = await invoiceRepo().findOne({ where: { id: dto.invoiceId } });
+      if (invoice && !invoice.isRenewal && !invoice.rentId) {
+        const property = await AppDataSource.getRepository('Property').findOne({
+          where: { id: dto.propertyId },
+        });
+        if (property && property.availableUnits < 1) {
+          throw ApiError.badRequest('No units available for this property');
+        }
+      }
+    }
 
     const reference = `PAY-${uuid().split('-')[0].toUpperCase()}-${Date.now()}`;
 
@@ -196,25 +211,61 @@ export class PaymentService {
     });
     if (!invoice) return;
 
-    if (!invoice.initialPaymentDone) {
+    // ─── Path 1: Renewal payment on an existing Rent ──
+    if (invoice.rentId) {
+      await rentService.advanceRentDueDate(invoice.rentId);
+      invoice.status = InvoiceStatus.PAID;
       invoice.initialPaymentDone = true;
       invoice.initialPaymentId = payment.id;
-      invoice.nextRentDueDate = this.calculateNextDueDate(
-        invoice.startDate!,
-        invoice.rentPeriod,
-      );
-    } else if (invoice.nextRentDueDate) {
+      await invoiceRepo().save(invoice);
+      return;
+    }
+
+    // ─── Path 2: Legacy renewal (old invoices without rentId) ──
+    if (invoice.isRenewal && invoice.parentInvoiceId) {
+      const parentInvoice = await invoiceRepo().findOne({
+        where: { id: invoice.parentInvoiceId },
+      });
+
+      if (parentInvoice) {
+        parentInvoice.nextRentDueDate = this.calculateNextDueDate(
+          invoice.startDate!,
+          invoice.rentPeriod,
+        );
+        parentInvoice.status = InvoiceStatus.COMPLETED;
+        await invoiceRepo().save(parentInvoice);
+      }
+
+      invoice.status = InvoiceStatus.COMPLETED;
+      invoice.initialPaymentDone = true;
+      invoice.initialPaymentId = payment.id;
+      invoice.endDate = this.calculateNextDueDate(invoice.startDate!, invoice.rentPeriod);
+      await invoiceRepo().save(invoice);
+      return;
+    }
+
+    // ─── Path 3: Initial payment → create Rent record ──
+    if (!invoice.initialPaymentDone) {
+      invoice.status = InvoiceStatus.PAID;
+      invoice.initialPaymentDone = true;
+      invoice.initialPaymentId = payment.id;
+      await invoiceRepo().save(invoice);
+
+      // Create the Rent entity (links invoice, decrements units, generates PDF)
+      await rentService.createFromPaidInvoice(invoice, payment.id);
+      return;
+    }
+
+    // ─── Path 4: Legacy fallback ──────────────────────
+    if (invoice.nextRentDueDate) {
       invoice.nextRentDueDate = this.calculateNextDueDate(
         invoice.nextRentDueDate,
         invoice.rentPeriod,
       );
     }
-
-    // Update invoice status from sent → paid on successful payment
     if (invoice.status === InvoiceStatus.SENT) {
       invoice.status = InvoiceStatus.PAID;
     }
-
     await invoiceRepo().save(invoice);
   }
 }

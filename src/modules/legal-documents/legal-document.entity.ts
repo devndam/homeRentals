@@ -3,7 +3,7 @@ import {
   CreateDateColumn, UpdateDateColumn,
 } from 'typeorm';
 import { LegalDocumentStatus } from '../../types';
-import { Invoice } from '../invoices/invoice.entity';
+import { Rent } from '../rents/rent.entity';
 import { User } from '../users/user.entity';
 import { Admin } from '../admin/admin.entity';
 import { LegalDocumentTemplate } from './legal-document-template.entity';
@@ -14,7 +14,7 @@ export class LegalDocument {
   id!: string;
 
   @Column({ type: 'uuid' })
-  invoiceId!: string;
+  rentId!: string;
 
   @Column({ type: 'uuid' })
   tenantId!: string;
@@ -45,9 +45,9 @@ export class LegalDocument {
   acknowledgedAt?: Date;
 
   // ─── Relations ────────────────────────────
-  @ManyToOne(() => Invoice, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'invoiceId' })
-  invoice!: Invoice;
+  @ManyToOne(() => Rent, (r) => r.legalDocuments, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'rentId' })
+  rent!: Rent;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'tenantId' })

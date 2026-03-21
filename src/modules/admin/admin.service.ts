@@ -136,10 +136,13 @@ export class AdminService {
       [AdminPermission.VIEW_PAYMENTS]: 'View all payment transactions',
       [AdminPermission.PROCESS_REFUND]: 'Process payment refunds',
       [AdminPermission.VIEW_INVOICES]: 'View all rental invoices',
+      [AdminPermission.TERMINATE_RENTAL]: 'Terminate active rental agreements',
       [AdminPermission.VIEW_DASHBOARD]: 'View dashboard analytics',
       [AdminPermission.MANAGE_DISPUTES]: 'Manage and resolve disputes',
       [AdminPermission.MANAGE_KYC]: 'Review, approve, and reject KYC submissions',
       [AdminPermission.MANAGE_WALLETS]: 'View wallets, approve or reject withdrawal requests',
+      [AdminPermission.MANAGE_LEGAL_DOCUMENTS]: 'Manage legal document templates',
+      [AdminPermission.MANAGE_SETTINGS]: 'Update system settings',
     };
 
     return ALL_ADMIN_PERMISSIONS.map((p) => ({
@@ -207,13 +210,14 @@ export class AdminService {
         .getRawMany(),
     ]);
 
-    // ── Top states by property count ──
+    // ── Top states by property count (rentedCount = active rents in that state) ──
     const topStates = await propertyRepo().createQueryBuilder('p')
       .select('p.state', 'state')
-      .addSelect('COUNT(*)::int', 'listingCount')
-      .addSelect("SUM(CASE WHEN p.status = 'rented' THEN 1 ELSE 0 END)::int", 'rentedCount')
+      .addSelect('COUNT(DISTINCT p.id)::int', 'listingCount')
+      .addSelect('COUNT(DISTINCT r.id)::int', 'rentedCount')
+      .leftJoin('rents', 'r', 'r.propertyId = p.id AND r.status IN (:...rentStatuses)', { rentStatuses: ['active', 'due', 'overdue'] })
       .groupBy('p.state')
-      .orderBy('COUNT(*)', 'DESC')
+      .orderBy('COUNT(DISTINCT p.id)', 'DESC')
       .limit(6)
       .getRawMany();
 

@@ -2,10 +2,11 @@ import {
   Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn,
   CreateDateColumn, UpdateDateColumn,
 } from 'typeorm';
-import { InvoiceStatus } from '../../types';
+import { InvoiceStatus, InvoiceType } from '../../types';
 import { User } from '../users/user.entity';
 import { Property } from '../properties/property.entity';
 import { Booking } from '../bookings/booking.entity';
+import { Rent } from '../rents/rent.entity';
 
 @Entity('invoices')
 export class Invoice {
@@ -66,6 +67,28 @@ export class Invoice {
 
   @Column({ type: 'date', nullable: true })
   nextRentDueDate?: string;
+
+  // ─── Renewal Tracking ──────────────────────
+  @Column({ type: 'boolean', default: false })
+  isRenewal!: boolean;
+
+  @Column({ type: 'uuid', nullable: true })
+  parentInvoiceId?: string;
+
+  @ManyToOne(() => Invoice, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'parentInvoiceId' })
+  parentInvoice?: Invoice;
+
+  // ─── Link to Rent ──────────────────────────
+  @Column({ type: 'uuid', nullable: true })
+  rentId?: string;
+
+  @Column({ type: 'enum', enum: InvoiceType, nullable: true })
+  invoiceType?: InvoiceType;
+
+  @ManyToOne(() => Rent, (r) => r.invoices, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'rentId' })
+  rent?: Rent;
 
   // ─── Booking Lineage ────────────────────────
   @Column({ type: 'uuid', nullable: true })

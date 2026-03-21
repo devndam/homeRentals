@@ -1,15 +1,16 @@
+import { In } from 'typeorm';
 import { AppDataSource } from '../../config/data-source';
 import { LegalDocumentTemplate } from './legal-document-template.entity';
 import { LegalDocument } from './legal-document.entity';
-import { Invoice } from '../invoices/invoice.entity';
+import { Rent } from '../rents/rent.entity';
 import { ApiError } from '../../utils/api-error';
-import { InvoiceStatus, LegalDocumentStatus, PaginatedResponse, PaginationQuery } from '../../types';
+import { RentStatus, LegalDocumentStatus, PaginatedResponse, PaginationQuery } from '../../types';
 import { paginate } from '../../utils/pagination';
 import { AssignLegalDocumentDto, CreateTemplateDto } from './legal-document.dto';
 
 const templateRepo = () => AppDataSource.getRepository(LegalDocumentTemplate);
 const documentRepo = () => AppDataSource.getRepository(LegalDocument);
-const invoiceRepo = () => AppDataSource.getRepository(Invoice);
+const rentRepo = () => AppDataSource.getRepository(Rent);
 
 export class LegalDocumentService {
 
@@ -44,8 +45,8 @@ export class LegalDocumentService {
     const qb = documentRepo()
       .createQueryBuilder('ld')
       .leftJoinAndSelect('ld.tenant', 'tenant')
-      .leftJoinAndSelect('ld.invoice', 'invoice')
-      .leftJoinAndSelect('invoice.property', 'property')
+      .leftJoinAndSelect('ld.rent', 'rent')
+      .leftJoinAndSelect('rent.property', 'property')
       .leftJoinAndSelect('ld.assignedByAdmin', 'admin');
 
     if (query.status) {
@@ -68,17 +69,17 @@ export class LegalDocumentService {
   async getDocumentById(id: string): Promise<LegalDocument> {
     const doc = await documentRepo().findOne({
       where: { id },
-      relations: ['tenant', 'invoice', 'invoice.property', 'assignedByAdmin', 'template'],
+      relations: ['tenant', 'rent', 'rent.property', 'assignedByAdmin', 'template'],
     });
     if (!doc) throw ApiError.notFound('Legal document not found');
     return doc;
   }
 
   async assignDocument(adminId: string, dto: AssignLegalDocumentDto, file?: Express.Multer.File): Promise<LegalDocument> {
-    const invoice = await invoiceRepo().findOne({ where: { id: dto.invoiceId } });
-    if (!invoice) throw ApiError.notFound('Invoice not found');
-    if (invoice.status !== InvoiceStatus.COMPLETED) {
-      throw ApiError.badRequest('Can only assign documents to completed invoices');
+    const rent = await rentRepo().findOne({ where: { id: dto.rentId } });
+    if (!rent) throw ApiError.notFound('Rent not found');
+    if (![RentStatus.ACTIVE, RentStatus.DUE, RentStatus.OVERDUE].includes(rent.status)) {
+      throw ApiError.badRequest('Can only assign documents to active rents');
     }
 
     let documentUrl: string;
@@ -94,8 +95,8 @@ export class LegalDocumentService {
     }
 
     const doc = documentRepo().create({
-      invoiceId: dto.invoiceId,
-      tenantId: invoice.tenantId,
+      rentId: dto.rentId,
+      tenantId: rent.tenantId,
       title: dto.title,
       description: dto.description,
       documentUrl,
@@ -113,9 +114,9 @@ export class LegalDocumentService {
     await documentRepo().remove(doc);
   }
 
-  async getActiveInvoices(): Promise<Invoice[]> {
-    return invoiceRepo().find({
-      where: { status: InvoiceStatus.COMPLETED },
+  async getActiveRents(): Promise<Rent[]> {
+    return rentRepo().find({
+      where: { status: In([RentStatus.ACTIVE, RentStatus.DUE, RentStatus.OVERDUE]) },
       relations: ['tenant', 'property'],
       order: { createdAt: 'DESC' },
     });
@@ -126,8 +127,8 @@ export class LegalDocumentService {
   async getMyDocuments(tenantId: string, query: PaginationQuery): Promise<PaginatedResponse<LegalDocument>> {
     const qb = documentRepo()
       .createQueryBuilder('ld')
-      .leftJoinAndSelect('ld.invoice', 'invoice')
-      .leftJoinAndSelect('invoice.property', 'property')
+      .leftJoinAndSelect('ld.rent', 'rent')
+      .leftJoinAndSelect('rent.property', 'property')
       .where('ld.tenantId = :tenantId', { tenantId });
 
     return paginate(qb, {

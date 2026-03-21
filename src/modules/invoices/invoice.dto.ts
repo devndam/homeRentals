@@ -1,6 +1,5 @@
-import { IsString, IsNotEmpty, IsOptional, IsDateString, IsNumber, IsUUID, Min, IsEnum } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsDateString, IsNumber, IsUUID, Min } from 'class-validator';
 import { Type } from 'class-transformer';
-import { InvoiceStatus } from '../../types';
 
 export class RequestInvoiceDto {
   @IsUUID()
@@ -66,8 +65,8 @@ export class InvoiceFilterDto {
   limit?: number;
 
   @IsOptional()
-  @IsEnum(InvoiceStatus)
-  status?: InvoiceStatus;
+  @IsString()
+  status?: string;
 
   @IsOptional()
   @IsString()

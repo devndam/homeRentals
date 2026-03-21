@@ -49,9 +49,9 @@ export class LegalDocumentController {
     return sendNoContent(res);
   }
 
-  async getActiveInvoices(_req: AuthenticatedRequest, res: Response) {
-    const invoices = await service.getActiveInvoices();
-    return sendSuccess(res, invoices);
+  async getActiveRents(_req: AuthenticatedRequest, res: Response) {
+    const rents = await service.getActiveRents();
+    return sendSuccess(res, rents);
   }
 
   // ─── Tenant ────────────────────────────────

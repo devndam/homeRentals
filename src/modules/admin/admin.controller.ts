@@ -2,12 +2,14 @@ import { Request, Response } from 'express';
 import { AdminService } from './admin.service';
 import { AdminAuthService } from './admin-auth.service';
 import { WalletService } from '../wallet/wallet.service';
+import { InvoiceService } from '../invoices/invoice.service';
 import { sendSuccess, sendCreated, sendPaginated } from '../../utils/response';
 import { AuthenticatedRequest } from '../../types';
 
 const adminService = new AdminService();
 const adminAuthService = new AdminAuthService();
 const walletService = new WalletService();
+const invoiceService = new InvoiceService();
 
 export class AdminController {
   // ─── Auth ───────────────────────────────────
@@ -129,6 +131,11 @@ export class AdminController {
   async getAllInvoices(req: AuthenticatedRequest, res: Response) {
     const result = await adminService.getAllInvoices(req.query as any);
     return sendPaginated(res, result);
+  }
+
+  async terminateRental(req: AuthenticatedRequest, res: Response) {
+    const invoice = await invoiceService.adminTerminate(req.params.id);
+    return sendSuccess(res, invoice, 'Rental terminated by admin');
   }
 
   // ─── Property Moderation ─────────────────

@@ -8,6 +8,7 @@ import { Booking } from '../bookings/booking.entity';
 import { Invoice } from '../invoices/invoice.entity';
 import { Payment } from '../payments/payment.entity';
 import { Wallet } from '../wallet/wallet.entity';
+import { WalletTransaction } from '../wallet/wallet-transaction.entity';
 import { Favorite } from '../properties/favorite.entity';
 
 const userRepo = () => AppDataSource.getRepository(User);
@@ -78,6 +79,8 @@ export class UserService {
     const invoiceRepo = AppDataSource.getRepository(Invoice);
     const walletRepo = AppDataSource.getRepository(Wallet);
 
+    const walletTxRepo = AppDataSource.getRepository(WalletTransaction);
+
     const [properties, bookings, invoices, wallet] = await Promise.all([
       propertyRepo
         .createQueryBuilder('p')
@@ -119,13 +122,57 @@ export class UserService {
       walletRepo.findOne({ where: { userId } }),
     ]);
 
+    // Revenue trend: monthly credits for last 12 months
+    let revenueTrend: { month: string; amount: number }[] = [];
+    if (wallet) {
+      const raw: { month: string; amount: string }[] = await walletTxRepo
+        .createQueryBuilder('wt')
+        .select([
+          "TO_CHAR(wt.\"createdAt\", 'YYYY-MM') AS month",
+          'COALESCE(SUM(wt.amount), 0) AS amount',
+        ])
+        .where('wt."walletId" = :walletId', { walletId: wallet.id })
+        .andWhere('wt.type = :type', { type: 'credit' })
+        .andWhere("wt.\"createdAt\" >= NOW() - INTERVAL '12 months'")
+        .groupBy("TO_CHAR(wt.\"createdAt\", 'YYYY-MM')")
+        .orderBy('month', 'ASC')
+        .getRawMany();
+
+      // Fill in missing months with 0
+      const now = new Date();
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const found = raw.find((r) => r.month === key);
+        revenueTrend.push({ month: key, amount: found ? parseFloat(found.amount) : 0 });
+      }
+    } else {
+      const now = new Date();
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        revenueTrend.push({ month: key, amount: 0 });
+      }
+    }
+
+    const walletData = wallet
+      ? { balance: wallet.balance, totalEarned: wallet.totalEarned, totalWithdrawn: wallet.totalWithdrawn }
+      : { balance: 0, totalEarned: 0, totalWithdrawn: 0 };
+
+    // This month vs last month revenue
+    const thisMonthRevenue = revenueTrend[revenueTrend.length - 1]?.amount ?? 0;
+    const lastMonthRevenue = revenueTrend[revenueTrend.length - 2]?.amount ?? 0;
+
     return {
       properties,
       bookings,
       invoices,
-      wallet: wallet
-        ? { balance: wallet.balance, totalEarned: wallet.totalEarned, totalWithdrawn: wallet.totalWithdrawn }
-        : { balance: 0, totalEarned: 0, totalWithdrawn: 0 },
+      wallet: walletData,
+      revenue: {
+        thisMonth: thisMonthRevenue,
+        lastMonth: lastMonthRevenue,
+        trend: revenueTrend,
+      },
     };
   }
 

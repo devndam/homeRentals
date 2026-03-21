@@ -56,7 +56,16 @@ export class BookingService {
       .leftJoinAndSelect('p.images', 'img', 'img.isPrimary = true')
       .leftJoinAndSelect('b.owner', 'owner')
       .leftJoinAndSelect('b.invoices', 'inv')
-      .where('b.tenantId = :tenantId', { tenantId });
+      .where('b.tenantId = :tenantId', { tenantId })
+      // Exclude bookings where tenant already has an active rent for that property
+      .andWhere(
+        `NOT EXISTS (
+          SELECT 1 FROM rents r
+          WHERE r."tenantId" = b."tenantId"
+            AND r."propertyId" = b."propertyId"
+            AND r.status IN ('active', 'due', 'overdue')
+        )`,
+      );
 
     this.applyBookingFilters(qb, filters);
 

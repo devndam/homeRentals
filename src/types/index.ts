@@ -44,6 +44,18 @@ export enum InvoiceStatus {
   TERMINATED = 'terminated',
 }
 
+export enum RentStatus {
+  ACTIVE = 'active',
+  DUE = 'due',
+  OVERDUE = 'overdue',
+  TERMINATED = 'terminated',
+}
+
+export enum InvoiceType {
+  INITIAL = 'initial',
+  RENEWAL = 'renewal',
+}
+
 export enum PaymentStatus {
   PENDING = 'pending',
   SUCCESS = 'success',
@@ -123,6 +135,7 @@ export enum AdminPermission {
 
   // Invoices
   VIEW_INVOICES = 'view_invoices',
+  TERMINATE_RENTAL = 'terminate_rental',
 
   // Dashboard / analytics
   VIEW_DASHBOARD = 'view_dashboard',

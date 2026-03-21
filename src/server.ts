@@ -7,6 +7,7 @@ import { connectRedis } from './config/redis';
 import { env } from './config/env';
 import app from './app';
 import { RentReminderService } from './modules/invoices/rent-reminder.service';
+import { InvoiceService } from './modules/invoices/invoice.service';
 
 // Ensure uploads directory exists
 fs.mkdirSync(path.join(process.cwd(), 'uploads'), { recursive: true });
@@ -20,18 +21,24 @@ async function bootstrap() {
     // Connect to Redis (non-blocking — app works without it)
     await connectRedis();
 
-    // Daily rent reminder cron job at 8:00 AM
+    // Daily rent jobs cron at 8:00 AM
     cron.schedule('0 8 * * *', async () => {
-      console.log('[Cron] Running daily rent reminders...');
+      console.log('[Cron] Running daily rent jobs...');
       try {
+        // Step 1: Generate renewal invoices for expired rentals
+        const invoiceService = new InvoiceService();
+        const renewalResult = await invoiceService.generateRenewalInvoices();
+        console.log(`[Cron] Renewal invoices: ${renewalResult.created} created.`);
+
+        // Step 2: Send rent reminders (runs after renewals so expired parents don't trigger overdue emails)
         const reminderService = new RentReminderService();
-        const result = await reminderService.processReminders();
-        console.log(`[Cron] Rent reminders done. ${result.sent} email(s) sent.`);
+        const reminderResult = await reminderService.processReminders();
+        console.log(`[Cron] Rent reminders: ${reminderResult.sent} email(s) sent.`);
       } catch (err) {
-        console.error('[Cron] Rent reminder error:', err);
+        console.error('[Cron] Daily rent job error:', err);
       }
     });
-    console.log('[Cron] Rent reminder job scheduled (daily at 8:00 AM)');
+    console.log('[Cron] Daily rent job scheduled (8:00 AM)');
 
     // Start server
     app.listen(env.port, () => {

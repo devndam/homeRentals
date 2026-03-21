@@ -12,7 +12,7 @@ export class CreateTemplateDto {
 
 export class AssignLegalDocumentDto {
   @IsUUID()
-  invoiceId!: string;
+  rentId!: string;
 
   @IsString()
   @IsNotEmpty()

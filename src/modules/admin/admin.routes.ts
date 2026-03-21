@@ -10,6 +10,7 @@ import { RejectKycDto } from '../kyc/kyc.dto';
 import { KycController } from '../kyc/kyc.controller';
 import { DisputeController } from '../disputes/dispute.controller';
 import { UpdateDisputeStatusDto } from '../disputes/dispute.dto';
+import { AdminRentController } from '../rents/rent.controller';
 import { LegalDocumentController } from '../legal-documents/legal-document.controller';
 import { uploadMedia } from '../../middleware/upload';
 import { SystemSettingsController } from '../settings/system-settings.controller';
@@ -19,6 +20,7 @@ const router = Router();
 const ctrl = new AdminController();
 const kycCtrl = new KycController();
 const disputeCtrl = new DisputeController();
+const rentCtrl = new AdminRentController();
 
 // ─── Public admin auth routes (no JWT required) ───
 router.post('/login', validateBody(LoginDto), asyncHandler(ctrl.login as any));
@@ -57,6 +59,11 @@ router.get('/users/:id/wallet', requirePermission(AdminPermission.VIEW_USERS) as
 
 // ─── Invoices ───────────────────────────────
 router.get('/invoices', requirePermission(AdminPermission.VIEW_INVOICES) as any, asyncHandler(ctrl.getAllInvoices as any));
+router.patch('/invoices/:id/terminate', requirePermission(AdminPermission.TERMINATE_RENTAL) as any, asyncHandler(ctrl.terminateRental as any));
+
+// ─── Rents ─────────────────────────────────
+router.get('/rents', requirePermission(AdminPermission.VIEW_INVOICES) as any, asyncHandler(rentCtrl.getAllRents as any));
+router.patch('/rents/:id/terminate', requirePermission(AdminPermission.TERMINATE_RENTAL) as any, asyncHandler(rentCtrl.terminateRent as any));
 
 // ─── Property Moderation ────────────────────
 router.get('/properties', requirePermission(AdminPermission.VIEW_PROPERTIES) as any, asyncHandler(ctrl.getAllProperties as any));
@@ -97,7 +104,7 @@ router.get('/legal-documents/templates', requirePermission(AdminPermission.MANAG
 router.post('/legal-documents/templates', requirePermission(AdminPermission.MANAGE_LEGAL_DOCUMENTS) as any, uploadMedia.single('file'), asyncHandler(legalDocCtrl.createTemplate as any));
 router.delete('/legal-documents/templates/:id', requirePermission(AdminPermission.MANAGE_LEGAL_DOCUMENTS) as any, asyncHandler(legalDocCtrl.deleteTemplate as any));
 
-router.get('/legal-documents/invoices', requirePermission(AdminPermission.MANAGE_LEGAL_DOCUMENTS) as any, asyncHandler(legalDocCtrl.getActiveInvoices as any));
+router.get('/legal-documents/rents', requirePermission(AdminPermission.MANAGE_LEGAL_DOCUMENTS) as any, asyncHandler(legalDocCtrl.getActiveRents as any));
 
 router.get('/legal-documents', requirePermission(AdminPermission.MANAGE_LEGAL_DOCUMENTS) as any, asyncHandler(legalDocCtrl.listDocuments as any));
 router.post('/legal-documents', requirePermission(AdminPermission.MANAGE_LEGAL_DOCUMENTS) as any, uploadMedia.single('file'), asyncHandler(legalDocCtrl.assignDocument as any));
