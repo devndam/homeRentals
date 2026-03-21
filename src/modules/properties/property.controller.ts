@@ -7,7 +7,7 @@ const propertyService = new PropertyService();
 
 export class PropertyController {
   async create(req: AuthenticatedRequest, res: Response) {
-    const property = await propertyService.create(req.user.sub, req.body);
+    const property = await propertyService.create(req.effectiveOwnerId!, req.body);
     return sendCreated(res, property, 'Property created and pending review');
   }
 
@@ -22,17 +22,17 @@ export class PropertyController {
   }
 
   async findMyListings(req: AuthenticatedRequest, res: Response) {
-    const result = await propertyService.findByOwner(req.user.sub, req.query as any);
+    const result = await propertyService.findByOwner(req.effectiveOwnerId!, req.query as any);
     return sendPaginated(res, result, 'My listings');
   }
 
   async update(req: AuthenticatedRequest, res: Response) {
-    const property = await propertyService.update(req.params.id, req.user.sub, req.body);
+    const property = await propertyService.update(req.params.id, req.effectiveOwnerId!, req.body);
     return sendSuccess(res, property, 'Property updated');
   }
 
   async delete(req: AuthenticatedRequest, res: Response) {
-    await propertyService.delete(req.params.id, req.user.sub);
+    await propertyService.delete(req.params.id, req.effectiveOwnerId!);
     return sendNoContent(res);
   }
 
@@ -41,12 +41,12 @@ export class PropertyController {
     if (!files || files.length === 0) {
       return sendSuccess(res, [], 'No files uploaded');
     }
-    const images = await propertyService.addImages(req.params.id, req.user.sub, files);
+    const images = await propertyService.addImages(req.params.id, req.effectiveOwnerId!, files);
     return sendCreated(res, images, 'Images uploaded');
   }
 
   async deleteImage(req: AuthenticatedRequest, res: Response) {
-    await propertyService.deleteImage(req.params.imageId, req.user.sub);
+    await propertyService.deleteImage(req.params.imageId, req.effectiveOwnerId!);
     return sendNoContent(res);
   }
 

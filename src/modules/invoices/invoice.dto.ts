@@ -39,11 +39,6 @@ export class CreateInvoiceDto {
   @IsOptional()
   rentPeriod?: string;
 
-  @IsNumber()
-  @IsOptional()
-  @Type(() => Number)
-  cautionDeposit?: number;
-
   @IsDateString()
   startDate!: string;
 

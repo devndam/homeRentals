@@ -4,13 +4,15 @@ import { LegalDocumentTemplate } from './legal-document-template.entity';
 import { LegalDocument } from './legal-document.entity';
 import { Rent } from '../rents/rent.entity';
 import { ApiError } from '../../utils/api-error';
-import { RentStatus, LegalDocumentStatus, PaginatedResponse, PaginationQuery } from '../../types';
+import { RentStatus, LegalDocumentStatus, NotificationType, PaginatedResponse, PaginationQuery } from '../../types';
 import { paginate } from '../../utils/pagination';
 import { AssignLegalDocumentDto, CreateTemplateDto } from './legal-document.dto';
+import { NotificationService } from '../notifications/notification.service';
 
 const templateRepo = () => AppDataSource.getRepository(LegalDocumentTemplate);
 const documentRepo = () => AppDataSource.getRepository(LegalDocument);
 const rentRepo = () => AppDataSource.getRepository(Rent);
+const notificationService = new NotificationService();
 
 export class LegalDocumentService {
 
@@ -105,7 +107,20 @@ export class LegalDocumentService {
       status: LegalDocumentStatus.PENDING,
     });
 
-    return documentRepo().save(doc);
+    const saved = await documentRepo().save(doc);
+
+    try {
+      await notificationService.create({
+        userId: rent.tenantId,
+        type: NotificationType.LEGAL_DOCUMENT,
+        title: 'New Legal Document',
+        message: 'A new legal document has been assigned to your rental',
+        relatedEntityId: saved.id,
+        relatedEntityType: 'legal_document',
+      });
+    } catch (err) { console.error('[Notification]', err); }
+
+    return saved;
   }
 
   async deleteDocument(id: string): Promise<void> {
@@ -148,6 +163,22 @@ export class LegalDocumentService {
 
     doc.status = LegalDocumentStatus.ACKNOWLEDGED;
     doc.acknowledgedAt = new Date();
-    return documentRepo().save(doc);
+    const saved = await documentRepo().save(doc);
+
+    try {
+      const rent = await rentRepo().findOne({ where: { id: doc.rentId } });
+      if (rent) {
+        await notificationService.create({
+          userId: rent.ownerId,
+          type: NotificationType.LEGAL_DOCUMENT,
+          title: 'Document Acknowledged',
+          message: 'Tenant acknowledged legal document',
+          relatedEntityId: saved.id,
+          relatedEntityType: 'legal_document',
+        });
+      }
+    } catch (err) { console.error('[Notification]', err); }
+
+    return saved;
   }
 }

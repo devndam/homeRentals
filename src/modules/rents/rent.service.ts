@@ -5,15 +5,17 @@ import { Invoice } from '../invoices/invoice.entity';
 import { Property } from '../properties/property.entity';
 import { Booking } from '../bookings/booking.entity';
 import { ApiError } from '../../utils/api-error';
-import { RentStatus, InvoiceStatus, InvoiceType, PropertyStatus, BookingStatus, PaginatedResponse } from '../../types';
+import { RentStatus, InvoiceStatus, InvoiceType, NotificationType, PropertyStatus, BookingStatus, PaginatedResponse } from '../../types';
 import { RentFilterDto, SignRentAgreementDto } from './rent.dto';
 import { paginate } from '../../utils/pagination';
 import { generateRentAgreementPdf } from './rent-pdf-generator';
+import { NotificationService } from '../notifications/notification.service';
 
 const rentRepo = () => AppDataSource.getRepository(Rent);
 const invoiceRepo = () => AppDataSource.getRepository(Invoice);
 const propertyRepo = () => AppDataSource.getRepository(Property);
 const bookingRepo = () => AppDataSource.getRepository(Booking);
+const notificationService = new NotificationService();
 
 export class RentService {
   /**
@@ -93,6 +95,26 @@ export class RentService {
       console.error('[Rent] PDF generation failed:', err);
     }
 
+    try {
+      const propertyTitle = property.title;
+      await notificationService.create({
+        userId: invoice.tenantId,
+        type: NotificationType.RENT,
+        title: 'Rent Active',
+        message: `Rent is now active for ${propertyTitle}`,
+        relatedEntityId: savedRent.id,
+        relatedEntityType: 'rent',
+      });
+      await notificationService.create({
+        userId: invoice.ownerId,
+        type: NotificationType.RENT,
+        title: 'Rent Active',
+        message: `Rent is now active for ${propertyTitle}`,
+        relatedEntityId: savedRent.id,
+        relatedEntityType: 'rent',
+      });
+    } catch (err) { console.error('[Notification]', err); }
+
     return savedRent;
   }
 
@@ -154,7 +176,20 @@ export class RentService {
       await propertyRepo().save(rent.property);
     }
 
-    return rentRepo().save(rent);
+    const saved = await rentRepo().save(rent);
+
+    try {
+      await notificationService.create({
+        userId: rent.tenantId,
+        type: NotificationType.RENT,
+        title: 'Rental Terminated',
+        message: `Your rental for ${rent.property?.title || 'a property'} has been terminated`,
+        relatedEntityId: saved.id,
+        relatedEntityType: 'rent',
+      });
+    } catch (err) { console.error('[Notification]', err); }
+
+    return saved;
   }
 
   /**
@@ -328,6 +363,18 @@ export class RentService {
 
       await invoiceRepo().save(renewal);
       created++;
+
+      try {
+        const property = await propertyRepo().findOne({ where: { id: rent.propertyId } });
+        await notificationService.create({
+          userId: rent.tenantId,
+          type: NotificationType.RENT,
+          title: 'Renewal Invoice Ready',
+          message: `Your renewal invoice for ${property?.title || 'a property'} is ready`,
+          relatedEntityId: renewal.id,
+          relatedEntityType: 'invoice',
+        });
+      } catch (err) { console.error('[Notification]', err); }
     }
 
     return { created };

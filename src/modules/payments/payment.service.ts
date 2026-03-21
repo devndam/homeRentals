@@ -4,7 +4,7 @@ import { Payment } from './payment.entity';
 import { User } from '../users/user.entity';
 import { Invoice } from '../invoices/invoice.entity';
 import { ApiError } from '../../utils/api-error';
-import { PaymentStatus, InvoiceStatus, PaginatedResponse, PaginationQuery } from '../../types';
+import { PaymentStatus, InvoiceStatus, NotificationType, PaginatedResponse, PaginationQuery } from '../../types';
 import { InitiatePaymentDto, PaymentFilterDto } from './payment.dto';
 import { PaystackService } from './paystack.service';
 import { env } from '../../config/env';
@@ -12,6 +12,8 @@ import { paginate } from '../../utils/pagination';
 import { WalletService } from '../wallet/wallet.service';
 import { SystemSettingsService } from '../settings/system-settings.service';
 import { RentService } from '../rents/rent.service';
+import { Property } from '../properties/property.entity';
+import { NotificationService } from '../notifications/notification.service';
 
 const paymentRepo = () => AppDataSource.getRepository(Payment);
 const userRepo = () => AppDataSource.getRepository(User);
@@ -20,6 +22,7 @@ const paystackService = new PaystackService();
 const walletService = new WalletService();
 const settingsService = new SystemSettingsService();
 const rentService = new RentService();
+const notificationService = new NotificationService();
 
 export class PaymentService {
   async initiate(userId: string, dto: InitiatePaymentDto) {
@@ -137,6 +140,7 @@ export class PaymentService {
       if (payment.status === PaymentStatus.SUCCESS) {
         await walletService.creditOwnerWallet(payment);
         await this.handleInvoicePaymentSuccess(payment);
+        await this.notifyPaymentSuccess(payment);
       }
 
       return payment;
@@ -160,6 +164,7 @@ export class PaymentService {
 
         await walletService.creditOwnerWallet(payment);
         await this.handleInvoicePaymentSuccess(payment);
+        await this.notifyPaymentSuccess(payment);
       }
     }
   }
@@ -270,5 +275,22 @@ export class PaymentService {
       invoice.status = InvoiceStatus.PAID;
     }
     await invoiceRepo().save(invoice);
+  }
+
+  private async notifyPaymentSuccess(payment: Payment): Promise<void> {
+    try {
+      if (!payment.propertyId) return;
+      const property = await AppDataSource.getRepository(Property).findOne({ where: { id: payment.propertyId } });
+      if (!property) return;
+      const tenant = await userRepo().findOne({ where: { id: payment.userId } });
+      await notificationService.create({
+        userId: property.ownerId,
+        type: NotificationType.PAYMENT,
+        title: 'Payment Received',
+        message: `Payment received from ${tenant?.firstName || 'a tenant'} for ${property.title}`,
+        relatedEntityId: payment.id,
+        relatedEntityType: 'payment',
+      });
+    } catch (err) { console.error('[Notification]', err); }
   }
 }

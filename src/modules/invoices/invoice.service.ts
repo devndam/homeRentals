@@ -5,17 +5,19 @@ import { Property } from '../properties/property.entity';
 import { User } from '../users/user.entity';
 import { Booking } from '../bookings/booking.entity';
 import { ApiError } from '../../utils/api-error';
-import { InvoiceStatus, BookingStatus, PaginatedResponse, PropertyStatus } from '../../types';
+import { InvoiceStatus, BookingStatus, NotificationType, PaginatedResponse, PropertyStatus } from '../../types';
 import { RequestInvoiceDto, CreateInvoiceDto, SignInvoiceDto, InvoiceFilterDto } from './invoice.dto';
 import { paginate } from '../../utils/pagination';
 import { generateAgreementPdf } from './pdf-generator';
 import { SystemSettingsService } from '../settings/system-settings.service';
+import { NotificationService } from '../notifications/notification.service';
 
 const invoiceRepo = () => AppDataSource.getRepository(Invoice);
 const propertyRepo = () => AppDataSource.getRepository(Property);
 const userRepo = () => AppDataSource.getRepository(User);
 const bookingRepo = () => AppDataSource.getRepository(Booking);
 const settingsService = new SystemSettingsService();
+const notificationService = new NotificationService();
 
 export class InvoiceService {
   /**
@@ -67,7 +69,20 @@ export class InvoiceService {
       requestedAt: new Date(),
     });
 
-    return invoiceRepo().save(invoice);
+    const saved = await invoiceRepo().save(invoice);
+
+    try {
+      await notificationService.create({
+        userId: property.ownerId,
+        type: NotificationType.INVOICE,
+        title: 'Invoice Requested',
+        message: `Tenant requested an invoice for ${property.title}`,
+        relatedEntityId: saved.id,
+        relatedEntityType: 'invoice',
+      });
+    } catch (err) { console.error('[Notification]', err); }
+
+    return saved;
   }
 
   /**
@@ -86,6 +101,10 @@ export class InvoiceService {
 
     let invoice: Invoice;
 
+    // Auto-calculate caution deposit from system settings
+    const settings = await settingsService.getSettings();
+    const fees = settingsService.calculateFees(Number(dto.rentAmount), settings);
+
     if (dto.invoiceId) {
       // Fill in an existing REQUESTED invoice
       const existing = await invoiceRepo().findOne({
@@ -95,7 +114,7 @@ export class InvoiceService {
 
       existing.rentAmount = dto.rentAmount;
       existing.rentPeriod = dto.rentPeriod || 'yearly';
-      existing.cautionDeposit = dto.cautionDeposit;
+      existing.cautionDeposit = fees.cautionDeposit;
       existing.startDate = dto.startDate;
       existing.endDate = dto.endDate;
       existing.additionalTerms = dto.additionalTerms;
@@ -111,7 +130,7 @@ export class InvoiceService {
         bookingId: dto.bookingId,
         rentAmount: dto.rentAmount,
         rentPeriod: dto.rentPeriod || 'yearly',
-        cautionDeposit: dto.cautionDeposit,
+        cautionDeposit: fees.cautionDeposit,
         startDate: dto.startDate,
         endDate: dto.endDate,
         additionalTerms: dto.additionalTerms,
@@ -146,7 +165,20 @@ export class InvoiceService {
     }
 
     invoice.status = InvoiceStatus.SENT;
-    return invoiceRepo().save(invoice);
+    const saved = await invoiceRepo().save(invoice);
+
+    try {
+      await notificationService.create({
+        userId: invoice.tenantId,
+        type: NotificationType.INVOICE,
+        title: 'Invoice Received',
+        message: `You received an invoice for ${invoice.property?.title || 'a property'}`,
+        relatedEntityId: saved.id,
+        relatedEntityType: 'invoice',
+      });
+    } catch (err) { console.error('[Notification]', err); }
+
+    return saved;
   }
 
   /**
@@ -215,7 +247,21 @@ export class InvoiceService {
     invoice.tenantSignedAt = new Date();
     invoice.status = InvoiceStatus.COMPLETED;
 
-    return invoiceRepo().save(invoice);
+    const saved = await invoiceRepo().save(invoice);
+
+    try {
+      const property = await propertyRepo().findOne({ where: { id: invoice.propertyId } });
+      await notificationService.create({
+        userId: invoice.ownerId,
+        type: NotificationType.INVOICE,
+        title: 'Agreement Signed',
+        message: `Tenant signed agreement for ${property?.title || 'a property'}`,
+        relatedEntityId: saved.id,
+        relatedEntityType: 'invoice',
+      });
+    } catch (err) { console.error('[Notification]', err); }
+
+    return saved;
   }
 
   /**
@@ -241,7 +287,22 @@ export class InvoiceService {
     }
 
     invoice.status = InvoiceStatus.CANCELLED;
-    return invoiceRepo().save(invoice);
+    const saved = await invoiceRepo().save(invoice);
+
+    try {
+      const property = await propertyRepo().findOne({ where: { id: invoice.propertyId } });
+      const otherPartyId = invoice.tenantId === userId ? invoice.ownerId : invoice.tenantId;
+      await notificationService.create({
+        userId: otherPartyId,
+        type: NotificationType.INVOICE,
+        title: 'Invoice Cancelled',
+        message: `Invoice for ${property?.title || 'a property'} was cancelled`,
+        relatedEntityId: saved.id,
+        relatedEntityType: 'invoice',
+      });
+    } catch (err) { console.error('[Notification]', err); }
+
+    return saved;
   }
 
   /**
@@ -279,7 +340,20 @@ export class InvoiceService {
       await propertyRepo().save(property);
     }
 
-    return invoiceRepo().save(invoice);
+    const saved = await invoiceRepo().save(invoice);
+
+    try {
+      await notificationService.create({
+        userId: invoice.tenantId,
+        type: NotificationType.INVOICE,
+        title: 'Rental Terminated',
+        message: `Your rental for ${invoice.property?.title || 'a property'} has been terminated`,
+        relatedEntityId: saved.id,
+        relatedEntityType: 'invoice',
+      });
+    } catch (err) { console.error('[Notification]', err); }
+
+    return saved;
   }
 
   /**

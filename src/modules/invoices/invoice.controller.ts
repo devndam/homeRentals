@@ -12,12 +12,12 @@ export class InvoiceController {
   }
 
   async create(req: AuthenticatedRequest, res: Response) {
-    const invoice = await invoiceService.createInvoice(req.user.sub, req.body);
+    const invoice = await invoiceService.createInvoice(req.effectiveOwnerId!, req.body);
     return sendCreated(res, invoice, 'Invoice created');
   }
 
   async sendInvoice(req: AuthenticatedRequest, res: Response) {
-    const invoice = await invoiceService.sendInvoice(req.params.id, req.user.sub);
+    const invoice = await invoiceService.sendInvoice(req.params.id, req.effectiveOwnerId!);
     return sendSuccess(res, invoice, 'Invoice sent to tenant');
   }
 
@@ -32,7 +32,7 @@ export class InvoiceController {
   }
 
   async terminate(req: AuthenticatedRequest, res: Response) {
-    const invoice = await invoiceService.terminate(req.params.id, req.user.sub);
+    const invoice = await invoiceService.terminate(req.params.id, req.effectiveOwnerId!);
     return sendSuccess(res, invoice, 'Rental terminated');
   }
 

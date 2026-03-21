@@ -24,6 +24,8 @@ import kycRoutes from './modules/kyc/kyc.routes';
 import walletRoutes from './modules/wallet/wallet.routes';
 import legalDocumentRoutes from './modules/legal-documents/legal-document.routes';
 import settingsRoutes from './modules/settings/system-settings.routes';
+import organisationRoutes from './modules/organisations/organisation.routes';
+import notificationRoutes from './modules/notifications/notification.routes';
 
 const app = express();
 
@@ -33,7 +35,7 @@ app.use(cors({
   origin: env.frontendUrl,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Organisation-Id'],
 }));
 
 // ─── Rate Limiting ───────────────────────────
@@ -100,6 +102,8 @@ app.use(`${env.apiPrefix}/kyc`, kycRoutes);
 app.use(`${env.apiPrefix}/wallet`, walletRoutes);
 app.use(`${env.apiPrefix}/legal-documents`, legalDocumentRoutes);
 app.use(`${env.apiPrefix}/settings`, settingsRoutes);
+app.use(`${env.apiPrefix}/organisations`, organisationRoutes);
+app.use(`${env.apiPrefix}/notifications`, notificationRoutes);
 
 // ─── 404 ─────────────────────────────────────
 app.use((_req, res) => {

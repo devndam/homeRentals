@@ -139,6 +139,24 @@ export class EmailService {
     });
   }
 
+  async sendOrgInvite(email: string, orgName: string): Promise<void> {
+    await transporter.sendMail({
+      from: env.smtp.from,
+      to: email,
+      subject: `You've been invited to join ${orgName} - Rentals NG`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Organisation Invite</h2>
+          <p>Hi,</p>
+          <p>You have been invited to join <strong>${orgName}</strong> on Rentals NG as a staff member.</p>
+          <p>Log in to your dashboard to accept or decline this invitation.</p>
+          <br/>
+          <p>- Rentals NG Team</p>
+        </div>
+      `,
+    });
+  }
+
   async sendRentReminderToOwner(
     email: string,
     firstName: string,

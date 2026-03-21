@@ -7,17 +7,17 @@ const walletService = new WalletService();
 
 export class WalletController {
   async getMyWallet(req: AuthenticatedRequest, res: Response) {
-    const wallet = await walletService.getMyWallet(req.user.sub);
+    const wallet = await walletService.getMyWallet(req.effectiveOwnerId!);
     return sendSuccess(res, wallet);
   }
 
   async getMyTransactions(req: AuthenticatedRequest, res: Response) {
-    const result = await walletService.getMyTransactions(req.user.sub, req.query as any);
+    const result = await walletService.getMyTransactions(req.effectiveOwnerId!, req.query as any);
     return sendPaginated(res, result);
   }
 
   async requestWithdrawal(req: AuthenticatedRequest, res: Response) {
-    const txn = await walletService.requestWithdrawal(req.user.sub, req.body);
+    const txn = await walletService.requestWithdrawal(req.effectiveOwnerId!, req.body);
     return sendSuccess(res, txn, 'Withdrawal request submitted for admin approval');
   }
 }

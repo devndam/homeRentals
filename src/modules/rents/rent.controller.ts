@@ -22,7 +22,7 @@ export class RentController {
   }
 
   async terminate(req: AuthenticatedRequest, res: Response) {
-    const rent = await rentService.terminate(req.params.id, req.user.sub);
+    const rent = await rentService.terminate(req.params.id, req.effectiveOwnerId!);
     return sendSuccess(res, rent, 'Rental terminated');
   }
 }

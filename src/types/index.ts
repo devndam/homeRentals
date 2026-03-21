@@ -114,6 +114,28 @@ export enum LegalDocumentStatus {
   ACKNOWLEDGED = 'acknowledged',
 }
 
+export enum NotificationType {
+  BOOKING = 'booking',
+  INVOICE = 'invoice',
+  PAYMENT = 'payment',
+  RENT = 'rent',
+  ORGANISATION = 'organisation',
+  LEGAL_DOCUMENT = 'legal_document',
+  SYSTEM = 'system',
+}
+
+// ─── Organisation Permissions ───────────────────────────
+export enum OrgPermission {
+  MANAGE_PROPERTIES = 'manage_properties',
+  MANAGE_BOOKINGS = 'manage_bookings',
+  MANAGE_INVOICES = 'manage_invoices',
+  MANAGE_RENTS = 'manage_rents',
+  MANAGE_AGREEMENTS = 'manage_agreements',
+  VIEW_PAYMENTS = 'view_payments',
+  VIEW_WALLET = 'view_wallet',
+  MANAGE_STAFF = 'manage_staff',
+}
+
 // ─── Admin Permissions ──────────────────────────────────
 export enum AdminPermission {
   // Admin management
@@ -183,6 +205,9 @@ export type JwtPayload = UserJwtPayload | AdminJwtPayload;
 export interface AuthenticatedRequest extends Request {
   user: JwtPayload;
   params: Record<string, string>;
+  effectiveOwnerId?: string;
+  organisation?: any;
+  orgMembership?: any;
 }
 
 // ─── Pagination ──────────────────────────────────────────

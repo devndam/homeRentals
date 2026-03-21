@@ -5,6 +5,7 @@ import { ApiError } from '../utils/api-error';
 import { AuthenticatedRequest, JwtPayload, AdminPermission } from '../types';
 import { AppDataSource } from '../config/data-source';
 import { User } from '../modules/users/user.entity';
+import { OrganisationMember } from '../modules/organisations/organisation-member.entity';
 
 /**
  * Verifies JWT access token from Authorization header.
@@ -26,7 +27,8 @@ export function authenticate(req: AuthenticatedRequest, _res: Response, next: Ne
 }
 
 /**
- * Restricts access to users with isPropertyOwner = true.
+ * Restricts access to users with isPropertyOwner = true,
+ * OR users who are staff members acting on behalf of an organisation.
  * Falls back to DB check in case JWT is stale (e.g. user upgraded after login).
  */
 export function requirePropertyOwner() {
@@ -45,12 +47,23 @@ export function requirePropertyOwner() {
       select: ['id', 'isPropertyOwner'],
     });
 
-    if (!user?.isPropertyOwner) {
-      throw ApiError.forbidden('Property owner access required');
+    if (user?.isPropertyOwner) {
+      req.user.isPropertyOwner = true;
+      return next();
     }
 
-    req.user.isPropertyOwner = true;
-    next();
+    // Allow org staff members (they act on behalf of a property owner)
+    const orgId = req.headers['x-organisation-id'] as string | undefined;
+    if (orgId) {
+      const membership = await AppDataSource.getRepository(OrganisationMember).findOne({
+        where: { organisationId: orgId, userId: req.user.sub },
+      });
+      if (membership) {
+        return next();
+      }
+    }
+
+    throw ApiError.forbidden('Property owner access required');
   };
 }
 

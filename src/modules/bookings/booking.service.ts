@@ -3,12 +3,16 @@ import { AppDataSource } from '../../config/data-source';
 import { Booking } from './booking.entity';
 import { Property } from '../properties/property.entity';
 import { ApiError } from '../../utils/api-error';
-import { BookingStatus, PaginatedResponse, PaginationQuery, PropertyStatus } from '../../types';
+import { BookingStatus, NotificationType, PaginatedResponse, PaginationQuery, PropertyStatus } from '../../types';
 import { CreateBookingDto, RespondBookingDto, CompleteBookingDto, AssignInspectionDateDto, BookingFilterDto } from './booking.dto';
 import { paginate } from '../../utils/pagination';
+import { User } from '../users/user.entity';
+import { NotificationService } from '../notifications/notification.service';
 
 const bookingRepo = () => AppDataSource.getRepository(Booking);
 const propertyRepo = () => AppDataSource.getRepository(Property);
+const userRepo = () => AppDataSource.getRepository(User);
+const notificationService = new NotificationService();
 
 export class BookingService {
   async create(tenantId: string, dto: CreateBookingDto): Promise<Booking> {
@@ -47,7 +51,21 @@ export class BookingService {
       message: dto.message,
     });
 
-    return bookingRepo().save(booking);
+    const saved = await bookingRepo().save(booking);
+
+    try {
+      const tenant = await userRepo().findOne({ where: { id: tenantId } });
+      await notificationService.create({
+        userId: property.ownerId,
+        type: NotificationType.BOOKING,
+        title: 'New Inspection Request',
+        message: `${tenant?.firstName || 'A tenant'} requested inspection for ${property.title}`,
+        relatedEntityId: saved.id,
+        relatedEntityType: 'booking',
+      });
+    } catch (err) { console.error('[Notification]', err); }
+
+    return saved;
   }
 
   async getTenantBookings(tenantId: string, filters: BookingFilterDto): Promise<PaginatedResponse<Booking>> {
@@ -114,7 +132,25 @@ export class BookingService {
       booking.alternativeDate = new Date(dto.alternativeDate);
     }
 
-    return bookingRepo().save(booking);
+    const saved = await bookingRepo().save(booking);
+
+    try {
+      const property = await propertyRepo().findOne({ where: { id: saved.propertyId } });
+      const title = dto.status === BookingStatus.APPROVED ? 'Booking Approved' : 'Booking Declined';
+      const msg = dto.status === BookingStatus.APPROVED
+        ? `Your booking for ${property?.title || 'a property'} has been approved`
+        : `Your booking for ${property?.title || 'a property'} was declined`;
+      await notificationService.create({
+        userId: saved.tenantId,
+        type: NotificationType.BOOKING,
+        title,
+        message: msg,
+        relatedEntityId: saved.id,
+        relatedEntityType: 'booking',
+      });
+    } catch (err) { console.error('[Notification]', err); }
+
+    return saved;
   }
 
   async assignInspectionDate(bookingId: string, ownerId: string, dto: AssignInspectionDateDto): Promise<Booking> {
@@ -129,7 +165,21 @@ export class BookingService {
 
     booking.inspectionDate = new Date(dto.inspectionDate);
     booking.status = BookingStatus.INSPECTION_SCHEDULED;
-    return bookingRepo().save(booking);
+    const saved = await bookingRepo().save(booking);
+
+    try {
+      const property = await propertyRepo().findOne({ where: { id: saved.propertyId } });
+      await notificationService.create({
+        userId: saved.tenantId,
+        type: NotificationType.BOOKING,
+        title: 'Inspection Scheduled',
+        message: `Inspection date set for ${property?.title || 'a property'}`,
+        relatedEntityId: saved.id,
+        relatedEntityType: 'booking',
+      });
+    } catch (err) { console.error('[Notification]', err); }
+
+    return saved;
   }
 
   async complete(bookingId: string, ownerId: string, dto: CompleteBookingDto): Promise<Booking> {
@@ -143,7 +193,23 @@ export class BookingService {
     }
 
     booking.status = dto.status;
-    return bookingRepo().save(booking);
+    const saved = await bookingRepo().save(booking);
+
+    if (dto.status === BookingStatus.COMPLETED) {
+      try {
+        const property = await propertyRepo().findOne({ where: { id: saved.propertyId } });
+        await notificationService.create({
+          userId: saved.tenantId,
+          type: NotificationType.BOOKING,
+          title: 'Inspection Complete',
+          message: `Your inspection for ${property?.title || 'a property'} is complete`,
+          relatedEntityId: saved.id,
+          relatedEntityType: 'booking',
+        });
+      } catch (err) { console.error('[Notification]', err); }
+    }
+
+    return saved;
   }
 
   async cancel(bookingId: string, tenantId: string): Promise<Booking> {
@@ -158,7 +224,21 @@ export class BookingService {
     }
 
     booking.status = BookingStatus.CANCELLED;
-    return bookingRepo().save(booking);
+    const saved = await bookingRepo().save(booking);
+
+    try {
+      const property = await propertyRepo().findOne({ where: { id: saved.propertyId } });
+      await notificationService.create({
+        userId: saved.ownerId,
+        type: NotificationType.BOOKING,
+        title: 'Booking Cancelled',
+        message: `Tenant cancelled booking for ${property?.title || 'a property'}`,
+        relatedEntityId: saved.id,
+        relatedEntityType: 'booking',
+      });
+    } catch (err) { console.error('[Notification]', err); }
+
+    return saved;
   }
 
   async delete(bookingId: string, tenantId: string): Promise<void> {
