@@ -4,7 +4,7 @@ import { authenticate, requirePropertyOwner } from '../../middleware/auth.middle
 import { resolveOrganisation, requireOrgPermission } from '../../middleware/organisation.middleware';
 import { validateBody, validateQuery } from '../../middleware/validate';
 import { asyncHandler } from '../../utils/async-handler';
-import { uploadMedia } from '../../middleware/upload';
+import { uploadMedia, processUpload } from '../../middleware/upload';
 import { CreatePropertyDto, UpdatePropertyDto, PropertyFilterDto } from './property.dto';
 import { OrgPermission } from '../../types';
 
@@ -27,7 +27,7 @@ router.post('/', requirePropertyOwner() as any, resolveOrganisation() as any, re
 router.get('/me/listings', requirePropertyOwner() as any, resolveOrganisation() as any, asyncHandler(ctrl.findMyListings as any));
 router.put('/:id', requirePropertyOwner() as any, resolveOrganisation() as any, requireOrgPermission(OrgPermission.MANAGE_PROPERTIES) as any, validateBody(UpdatePropertyDto), asyncHandler(ctrl.update as any));
 router.delete('/:id', requirePropertyOwner() as any, resolveOrganisation() as any, requireOrgPermission(OrgPermission.MANAGE_PROPERTIES) as any, asyncHandler(ctrl.delete as any));
-router.post('/:id/images', requirePropertyOwner() as any, resolveOrganisation() as any, requireOrgPermission(OrgPermission.MANAGE_PROPERTIES) as any, uploadMedia.array('images', 15), asyncHandler(ctrl.uploadImages as any));
+router.post('/:id/images', requirePropertyOwner() as any, resolveOrganisation() as any, requireOrgPermission(OrgPermission.MANAGE_PROPERTIES) as any, uploadMedia.array('images', 15), processUpload as any, asyncHandler(ctrl.uploadImages as any));
 router.delete('/:id/images/:imageId', requirePropertyOwner() as any, resolveOrganisation() as any, requireOrgPermission(OrgPermission.MANAGE_PROPERTIES) as any, asyncHandler(ctrl.deleteImage as any));
 
 export default router;

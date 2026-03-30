@@ -8,7 +8,8 @@ const service = new SystemSettingsService();
 export class SystemSettingsController {
   async getSettings(_req: AuthenticatedRequest, res: Response) {
     const settings = await service.getSettings();
-    return sendSuccess(res, settings);
+    const storageProviders = service.getStorageProviderStatus();
+    return sendSuccess(res, { ...settings, storageProviders });
   }
 
   async updateSettings(req: AuthenticatedRequest, res: Response) {

@@ -29,7 +29,7 @@ export class LegalDocumentService {
     const template = templateRepo().create({
       name: dto.name,
       description: dto.description,
-      fileUrl: `/uploads/${file.filename}`,
+      fileUrl: file.storageUrl || `/uploads/${file.filename}`,
       createdByAdminId: adminId,
     });
     return templateRepo().save(template);
@@ -91,7 +91,7 @@ export class LegalDocumentService {
       if (!template) throw ApiError.notFound('Template not found');
       documentUrl = template.fileUrl;
     } else if (file) {
-      documentUrl = `/uploads/${file.filename}`;
+      documentUrl = file.storageUrl || `/uploads/${file.filename}`;
     } else {
       throw ApiError.badRequest('Either a template or a PDF file must be provided');
     }

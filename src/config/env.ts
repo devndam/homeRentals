@@ -45,10 +45,21 @@ export const env = {
     commissionPercent: parseFloat(optional('PLATFORM_COMMISSION_PERCENT', '5')),
   },
 
+  cloudinary: (() => {
+    const url = process.env.CLOUDINARY_URL || '';
+    const match = url.match(/^cloudinary:\/\/([^:]+):([^@]+)@(.+)$/);
+    return {
+      url,
+      cloudName: match?.[3] || optional('CLOUDINARY_CLOUD_NAME', ''),
+      apiKey: match?.[1] || optional('CLOUDINARY_API_KEY', ''),
+      apiSecret: match?.[2] || optional('CLOUDINARY_API_SECRET', ''),
+    };
+  })(),
+
   storage: {
-    endpoint: optional('STORAGE_ENDPOINT', 'http://localhost:9000'),
-    accessKey: optional('STORAGE_ACCESS_KEY', 'minioadmin'),
-    secretKey: optional('STORAGE_SECRET_KEY', 'minioadmin'),
+    endpoint: optional('STORAGE_ENDPOINT', ''),
+    accessKey: optional('STORAGE_ACCESS_KEY', ''),
+    secretKey: optional('STORAGE_SECRET_KEY', ''),
     bucket: optional('STORAGE_BUCKET', 'rentals'),
     region: optional('STORAGE_REGION', 'us-east-1'),
   },

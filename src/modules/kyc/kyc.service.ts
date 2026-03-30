@@ -21,7 +21,7 @@ export class KycService {
     const doc = kycRepo().create({
       userId,
       documentType: dto.documentType,
-      documentUrl: `/uploads/${file.filename}`,
+      documentUrl: file.storageUrl || `/uploads/${file.filename}`,
       status: KycStatus.APPROVED, // Auto-approve for testing
       reviewedAt: new Date(),
     });

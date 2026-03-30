@@ -128,7 +128,7 @@ export class PropertyService {
     const images = files.map((file, i) =>
       imageRepo().create({
         propertyId,
-        url: `/uploads/${file.filename}`,
+        url: file.storageUrl || `/uploads/${file.filename}`,
         mediaType: file.mimetype.startsWith('video') ? 'video' : 'image',
         isPrimary: hasNoPrimary && i === 0,
         sortOrder: existingCount + i,

@@ -12,7 +12,7 @@ import { DisputeController } from '../disputes/dispute.controller';
 import { UpdateDisputeStatusDto } from '../disputes/dispute.dto';
 import { AdminRentController } from '../rents/rent.controller';
 import { LegalDocumentController } from '../legal-documents/legal-document.controller';
-import { uploadMedia } from '../../middleware/upload';
+import { uploadMedia, processUpload } from '../../middleware/upload';
 import { SystemSettingsController } from '../settings/system-settings.controller';
 import { UpdateSystemSettingsDto } from '../settings/system-settings.dto';
 
@@ -101,13 +101,13 @@ router.patch('/disputes/:id/status', requirePermission(AdminPermission.MANAGE_DI
 const legalDocCtrl = new LegalDocumentController();
 
 router.get('/legal-documents/templates', requirePermission(AdminPermission.MANAGE_LEGAL_DOCUMENTS) as any, asyncHandler(legalDocCtrl.listTemplates as any));
-router.post('/legal-documents/templates', requirePermission(AdminPermission.MANAGE_LEGAL_DOCUMENTS) as any, uploadMedia.single('file'), asyncHandler(legalDocCtrl.createTemplate as any));
+router.post('/legal-documents/templates', requirePermission(AdminPermission.MANAGE_LEGAL_DOCUMENTS) as any, uploadMedia.single('file'), processUpload as any, asyncHandler(legalDocCtrl.createTemplate as any));
 router.delete('/legal-documents/templates/:id', requirePermission(AdminPermission.MANAGE_LEGAL_DOCUMENTS) as any, asyncHandler(legalDocCtrl.deleteTemplate as any));
 
 router.get('/legal-documents/rents', requirePermission(AdminPermission.MANAGE_LEGAL_DOCUMENTS) as any, asyncHandler(legalDocCtrl.getActiveRents as any));
 
 router.get('/legal-documents', requirePermission(AdminPermission.MANAGE_LEGAL_DOCUMENTS) as any, asyncHandler(legalDocCtrl.listDocuments as any));
-router.post('/legal-documents', requirePermission(AdminPermission.MANAGE_LEGAL_DOCUMENTS) as any, uploadMedia.single('file'), asyncHandler(legalDocCtrl.assignDocument as any));
+router.post('/legal-documents', requirePermission(AdminPermission.MANAGE_LEGAL_DOCUMENTS) as any, uploadMedia.single('file'), processUpload as any, asyncHandler(legalDocCtrl.assignDocument as any));
 router.get('/legal-documents/:id', requirePermission(AdminPermission.MANAGE_LEGAL_DOCUMENTS) as any, asyncHandler(legalDocCtrl.getDocumentById as any));
 router.delete('/legal-documents/:id', requirePermission(AdminPermission.MANAGE_LEGAL_DOCUMENTS) as any, asyncHandler(legalDocCtrl.deleteDocument as any));
 

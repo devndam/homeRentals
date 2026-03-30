@@ -1,6 +1,8 @@
 import { AppDataSource } from '../../config/data-source';
 import { SystemSettings } from './system-settings.entity';
 import { UpdateSystemSettingsDto } from './system-settings.dto';
+import { env } from '../../config/env';
+import { invalidateStorageCache } from '../../services/storage.service';
 
 const settingsRepo = () => AppDataSource.getRepository(SystemSettings);
 
@@ -15,10 +17,28 @@ export class SystemSettingsService {
     return settings;
   }
 
+  getStorageProviderStatus() {
+    return {
+      local: { configured: true },
+      cloudinary: {
+        configured: !!(env.cloudinary.cloudName && env.cloudinary.apiKey && env.cloudinary.apiSecret),
+      },
+      do_spaces: {
+        configured: !!(env.storage.endpoint && env.storage.accessKey && env.storage.secretKey),
+      },
+    };
+  }
+
   async updateSettings(dto: UpdateSystemSettingsDto): Promise<SystemSettings> {
     const settings = await this.getSettings();
     Object.assign(settings, dto);
-    return settingsRepo().save(settings);
+    const saved = await settingsRepo().save(settings);
+
+    if (dto.storageProvider) {
+      invalidateStorageCache();
+    }
+
+    return saved;
   }
 
   calculateFees(rentAmount: number, settings: SystemSettings) {

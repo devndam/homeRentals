@@ -3,6 +3,10 @@ import { Type } from 'class-transformer';
 
 export class UpdateSystemSettingsDto {
   @IsOptional()
+  @IsIn(['local', 'cloudinary', 'do_spaces'])
+  storageProvider?: string;
+
+  @IsOptional()
   @IsNumber()
   @Min(0)
   @Max(100)

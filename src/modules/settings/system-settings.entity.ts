@@ -7,6 +7,10 @@ export class SystemSettings {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
+  // ─── Storage Provider ───────────────────
+  @Column({ default: 'local' })
+  storageProvider!: string; // 'local' | 'cloudinary' | 'do_spaces'
+
   // ─── Platform Commission ─────────────────
   @Column({ type: 'decimal', precision: 5, scale: 2, default: 5 })
   platformCommissionPercent!: number;
