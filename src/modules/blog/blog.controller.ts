@@ -14,7 +14,7 @@ export class BlogController {
   }
 
   async getBySlug(req: Request, res: Response) {
-    const post = await blogService.findPostBySlug(req.params.slug, true);
+    const post = await blogService.findPostBySlug(req.params.slug as string, true);
     return sendSuccess(res, post);
   }
 

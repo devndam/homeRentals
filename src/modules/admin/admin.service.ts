@@ -143,6 +143,7 @@ export class AdminService {
       [AdminPermission.MANAGE_WALLETS]: 'View wallets, approve or reject withdrawal requests',
       [AdminPermission.MANAGE_LEGAL_DOCUMENTS]: 'Manage legal document templates',
       [AdminPermission.MANAGE_SETTINGS]: 'Update system settings',
+      [AdminPermission.MANAGE_BLOG]: 'Create, edit, and manage blog posts, categories, and tags',
     };
 
     return ALL_ADMIN_PERMISSIONS.map((p) => ({
