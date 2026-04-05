@@ -3,6 +3,7 @@ import { AppDataSource } from '../../config/data-source';
 import { Admin } from './admin.entity';
 import { User } from '../users/user.entity';
 import { Property } from '../properties/property.entity';
+import { PropertyImage } from '../properties/property-image.entity';
 import { Payment } from '../payments/payment.entity';
 import { Booking } from '../bookings/booking.entity';
 import { Invoice } from '../invoices/invoice.entity';
@@ -22,6 +23,7 @@ const emailService = new EmailService();
 const adminRepo = () => AppDataSource.getRepository(Admin);
 const userRepo = () => AppDataSource.getRepository(User);
 const propertyRepo = () => AppDataSource.getRepository(Property);
+const imageRepo = () => AppDataSource.getRepository(PropertyImage);
 const paymentRepo = () => AppDataSource.getRepository(Payment);
 const bookingRepo = () => AppDataSource.getRepository(Booking);
 const invoiceRepo = () => AppDataSource.getRepository(Invoice);
@@ -558,6 +560,34 @@ export class AdminService {
 
     Object.assign(property, dto);
     return propertyRepo().save(property);
+  }
+
+  async addPropertyImages(propertyId: string, files: Express.Multer.File[]): Promise<PropertyImage[]> {
+    const property = await propertyRepo().findOne({ where: { id: propertyId } });
+    if (!property) throw ApiError.notFound('Property not found');
+
+    const existingCount = await imageRepo().count({ where: { propertyId } });
+    const hasNoPrimary = existingCount === 0;
+
+    const images = files.map((file, i) =>
+      imageRepo().create({
+        propertyId,
+        url: (file as any).storageUrl || `/uploads/${file.filename}`,
+        mediaType: file.mimetype.startsWith('video') ? 'video' : 'image',
+        isPrimary: hasNoPrimary && i === 0,
+        sortOrder: existingCount + i,
+      }),
+    );
+
+    return imageRepo().save(images);
+  }
+
+  async deletePropertyImage(propertyId: string, imageId: string): Promise<void> {
+    const image = await imageRepo().findOne({
+      where: { id: imageId, propertyId },
+    });
+    if (!image) throw ApiError.notFound('Image not found');
+    await imageRepo().remove(image);
   }
 
   async getAllProperties(query: PaginationQuery & { status?: PropertyStatus }): Promise<PaginatedResponse<Property>> {

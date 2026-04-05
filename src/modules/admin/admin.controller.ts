@@ -159,6 +159,17 @@ export class AdminController {
     return sendSuccess(res, property, 'Property updated');
   }
 
+  async uploadPropertyImages(req: AuthenticatedRequest, res: Response) {
+    const files = req.files as Express.Multer.File[];
+    const images = await adminService.addPropertyImages(req.params.id, files);
+    return sendCreated(res, images, 'Images uploaded');
+  }
+
+  async deletePropertyImage(req: AuthenticatedRequest, res: Response) {
+    await adminService.deletePropertyImage(req.params.id, req.params.imageId);
+    return sendSuccess(res, null, 'Image deleted');
+  }
+
   async approveProperty(req: AuthenticatedRequest, res: Response) {
     const property = await adminService.approveProperty(req.params.id);
     return sendSuccess(res, property, 'Property approved');

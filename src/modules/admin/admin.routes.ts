@@ -75,6 +75,8 @@ router.get('/properties', requirePermission(AdminPermission.VIEW_PROPERTIES) as 
 router.get('/properties/pending', requirePermission(AdminPermission.VIEW_PROPERTIES) as any, asyncHandler(ctrl.getPendingProperties as any));
 router.get('/properties/:id', requirePermission(AdminPermission.VIEW_PROPERTIES) as any, asyncHandler(ctrl.getPropertyById as any));
 router.put('/properties/:id', requirePermission(AdminPermission.EDIT_PROPERTY) as any, validateBody(UpdatePropertyDto), asyncHandler(ctrl.updateProperty as any));
+router.post('/properties/:id/images', requirePermission(AdminPermission.EDIT_PROPERTY) as any, uploadMedia.array('images', 15), processUpload as any, asyncHandler(ctrl.uploadPropertyImages as any));
+router.delete('/properties/:id/images/:imageId', requirePermission(AdminPermission.EDIT_PROPERTY) as any, asyncHandler(ctrl.deletePropertyImage as any));
 router.patch('/properties/:id/approve', requirePermission(AdminPermission.APPROVE_PROPERTY) as any, asyncHandler(ctrl.approveProperty as any));
 router.patch('/properties/:id/reject', requirePermission(AdminPermission.REJECT_PROPERTY) as any, validateBody(RejectPropertyDto), asyncHandler(ctrl.rejectProperty as any));
 router.patch('/properties/:id/suspend', requirePermission(AdminPermission.SUSPEND_PROPERTY) as any, validateBody(RejectPropertyDto), asyncHandler(ctrl.suspendProperty as any));
