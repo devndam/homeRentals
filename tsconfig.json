@@ -15,14 +15,13 @@
     "sourceMap": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "baseUrl": "./src",
     "paths": {
-      "@config/*": ["config/*"],
-      "@middleware/*": ["middleware/*"],
-      "@modules/*": ["modules/*"],
-      "@utils/*": ["utils/*"],
-      "@types/*": ["types/*"],
-      "@database/*": ["database/*"]
+      "@config/*": ["./src/config/*"],
+      "@middleware/*": ["./src/middleware/*"],
+      "@modules/*": ["./src/modules/*"],
+      "@utils/*": ["./src/utils/*"],
+      "@types/*": ["./src/types/*"],
+      "@database/*": ["./src/database/*"]
     }
   },
   "include": ["src/**/*"],

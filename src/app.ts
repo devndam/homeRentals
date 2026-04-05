@@ -27,6 +27,7 @@ import settingsRoutes from './modules/settings/system-settings.routes';
 import organisationRoutes from './modules/organisations/organisation.routes';
 import notificationRoutes from './modules/notifications/notification.routes';
 import blogRoutes from './modules/blog/blog.routes';
+import serviceLocationRoutes from './modules/service-locations/service-location.routes';
 
 const app = express();
 
@@ -106,6 +107,7 @@ app.use(`${env.apiPrefix}/settings`, settingsRoutes);
 app.use(`${env.apiPrefix}/organisations`, organisationRoutes);
 app.use(`${env.apiPrefix}/notifications`, notificationRoutes);
 app.use(`${env.apiPrefix}/blog`, blogRoutes);
+app.use(`${env.apiPrefix}/locations`, serviceLocationRoutes);
 
 // ─── 404 ─────────────────────────────────────
 app.use((_req, res) => {

@@ -144,6 +144,7 @@ export class AdminService {
       [AdminPermission.MANAGE_LEGAL_DOCUMENTS]: 'Manage legal document templates',
       [AdminPermission.MANAGE_SETTINGS]: 'Update system settings',
       [AdminPermission.MANAGE_BLOG]: 'Create, edit, and manage blog posts, categories, and tags',
+      [AdminPermission.MANAGE_LOCATIONS]: 'Manage service locations where the platform operates',
     };
 
     return ALL_ADMIN_PERMISSIONS.map((p) => ({

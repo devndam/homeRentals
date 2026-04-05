@@ -186,6 +186,9 @@ export enum AdminPermission {
 
   // Blog
   MANAGE_BLOG = 'manage_blog',
+
+  // Service Locations
+  MANAGE_LOCATIONS = 'manage_locations',
 }
 
 export const ALL_ADMIN_PERMISSIONS = Object.values(AdminPermission);

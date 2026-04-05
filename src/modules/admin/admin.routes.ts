@@ -17,6 +17,8 @@ import { SystemSettingsController } from '../settings/system-settings.controller
 import { UpdateSystemSettingsDto } from '../settings/system-settings.dto';
 import { BlogController } from '../blog/blog.controller';
 import { CreateBlogPostDto, UpdateBlogPostDto, CreateBlogCategoryDto, UpdateBlogCategoryDto, BlogPostFilterDto } from '../blog/blog.dto';
+import { ServiceLocationController } from '../service-locations/service-location.controller';
+import { CreateServiceLocationDto, UpdateServiceLocationDto } from '../service-locations/service-location.dto';
 
 const router = Router();
 const ctrl = new AdminController();
@@ -136,5 +138,14 @@ router.delete('/blog/categories/:id', requirePermission(AdminPermission.MANAGE_B
 
 router.get('/blog/tags', requirePermission(AdminPermission.MANAGE_BLOG) as any, asyncHandler(blogCtrl.listTags as any));
 router.delete('/blog/tags/:id', requirePermission(AdminPermission.MANAGE_BLOG) as any, asyncHandler(blogCtrl.deleteTag as any));
+
+// ─── Service Locations Management ──────
+const locationCtrl = new ServiceLocationController();
+
+router.get('/locations', requirePermission(AdminPermission.MANAGE_LOCATIONS) as any, asyncHandler(locationCtrl.findAll as any));
+router.get('/locations/:id', requirePermission(AdminPermission.MANAGE_LOCATIONS) as any, asyncHandler(locationCtrl.findById as any));
+router.post('/locations', requirePermission(AdminPermission.MANAGE_LOCATIONS) as any, validateBody(CreateServiceLocationDto), asyncHandler(locationCtrl.create as any));
+router.put('/locations/:id', requirePermission(AdminPermission.MANAGE_LOCATIONS) as any, validateBody(UpdateServiceLocationDto), asyncHandler(locationCtrl.update as any));
+router.delete('/locations/:id', requirePermission(AdminPermission.MANAGE_LOCATIONS) as any, asyncHandler(locationCtrl.delete as any));
 
 export default router;

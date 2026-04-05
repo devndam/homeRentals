@@ -2,17 +2,26 @@ import { AppDataSource } from '../../config/data-source';
 import { Property } from './property.entity';
 import { PropertyImage } from './property-image.entity';
 import { Favorite } from './favorite.entity';
+import { ServiceLocation } from '../service-locations/service-location.entity';
 import { ApiError } from '../../utils/api-error';
 import { PaginatedResponse, PropertyStatus } from '../../types';
 import { CreatePropertyDto, UpdatePropertyDto, PropertyFilterDto } from './property.dto';
 import { paginate } from '../../utils/pagination';
+import { ServiceLocationService } from '../service-locations/service-location.service';
 
 const propertyRepo = () => AppDataSource.getRepository(Property);
 const imageRepo = () => AppDataSource.getRepository(PropertyImage);
 const favoriteRepo = () => AppDataSource.getRepository(Favorite);
+const serviceLocationRepo = () => AppDataSource.getRepository(ServiceLocation);
+const locationService = new ServiceLocationService();
 
 export class PropertyService {
   async create(ownerId: string, dto: CreatePropertyDto): Promise<Property> {
+    const allowed = await locationService.isCityInServiceArea(dto.city, dto.state);
+    if (!allowed) {
+      throw ApiError.badRequest(`Properties in ${dto.city}, ${dto.state} are not allowed. Service is not available in this location.`);
+    }
+
     const units = dto.totalUnits || 1;
     const property = propertyRepo().create({
       ...dto,
@@ -29,6 +38,14 @@ export class PropertyService {
       .createQueryBuilder('p')
       .leftJoinAndSelect('p.images', 'img')
       .where('p.status = :status', { status: PropertyStatus.ACTIVE });
+
+    // Only show properties in active service locations (if any are configured)
+    const hasServiceLocations = await serviceLocationRepo().count({ where: { isActive: true } });
+    if (hasServiceLocations > 0) {
+      qb.andWhere(
+        `EXISTS (SELECT 1 FROM service_locations sl WHERE sl."isActive" = true AND LOWER(sl.city) = LOWER(p.city) AND LOWER(sl.state) = LOWER(p.state))`,
+      );
+    }
 
     if (filters.search) {
       qb.andWhere(
