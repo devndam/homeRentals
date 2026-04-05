@@ -154,6 +154,7 @@ export enum AdminPermission {
 
   // Property moderation
   VIEW_PROPERTIES = 'view_properties',
+  EDIT_PROPERTY = 'edit_property',
   APPROVE_PROPERTY = 'approve_property',
   REJECT_PROPERTY = 'reject_property',
   SUSPEND_PROPERTY = 'suspend_property',

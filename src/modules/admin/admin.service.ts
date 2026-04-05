@@ -130,6 +130,7 @@ export class AdminService {
       [AdminPermission.TOGGLE_USER_STATUS]: 'Activate or deactivate user accounts',
       [AdminPermission.VERIFY_USER]: 'Verify user identity',
       [AdminPermission.VIEW_PROPERTIES]: 'View all property listings',
+      [AdminPermission.EDIT_PROPERTY]: 'Edit property listings',
       [AdminPermission.APPROVE_PROPERTY]: 'Approve property listings',
       [AdminPermission.REJECT_PROPERTY]: 'Reject property listings',
       [AdminPermission.SUSPEND_PROPERTY]: 'Suspend property listings',
@@ -546,6 +547,17 @@ export class AdminService {
     });
     if (!property) throw ApiError.notFound('Property not found');
     return property;
+  }
+
+  async updateProperty(propertyId: string, dto: Record<string, any>): Promise<Property> {
+    const property = await propertyRepo().findOne({
+      where: { id: propertyId },
+      relations: ['images', 'owner'],
+    });
+    if (!property) throw ApiError.notFound('Property not found');
+
+    Object.assign(property, dto);
+    return propertyRepo().save(property);
   }
 
   async getAllProperties(query: PaginationQuery & { status?: PropertyStatus }): Promise<PaginatedResponse<Property>> {

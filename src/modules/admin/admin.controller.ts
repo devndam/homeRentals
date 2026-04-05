@@ -154,6 +154,11 @@ export class AdminController {
     return sendPaginated(res, result);
   }
 
+  async updateProperty(req: AuthenticatedRequest, res: Response) {
+    const property = await adminService.updateProperty(req.params.id, req.body);
+    return sendSuccess(res, property, 'Property updated');
+  }
+
   async approveProperty(req: AuthenticatedRequest, res: Response) {
     const property = await adminService.approveProperty(req.params.id);
     return sendSuccess(res, property, 'Property approved');

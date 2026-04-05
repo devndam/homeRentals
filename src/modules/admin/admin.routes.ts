@@ -5,6 +5,7 @@ import { validateBody, validateQuery } from '../../middleware/validate';
 import { asyncHandler } from '../../utils/async-handler';
 import { AdminPermission } from '../../types';
 import { CreateAdminDto, UpdateAdminPermissionsDto, UpdateAdminRoleDto, UpdateUserDto, RejectPropertyDto } from './admin.dto';
+import { UpdatePropertyDto } from '../properties/property.dto';
 import { LoginDto, RefreshTokenDto } from '../auth/auth.dto';
 import { RejectKycDto } from '../kyc/kyc.dto';
 import { KycController } from '../kyc/kyc.controller';
@@ -73,6 +74,7 @@ router.patch('/rents/:id/terminate', requirePermission(AdminPermission.TERMINATE
 router.get('/properties', requirePermission(AdminPermission.VIEW_PROPERTIES) as any, asyncHandler(ctrl.getAllProperties as any));
 router.get('/properties/pending', requirePermission(AdminPermission.VIEW_PROPERTIES) as any, asyncHandler(ctrl.getPendingProperties as any));
 router.get('/properties/:id', requirePermission(AdminPermission.VIEW_PROPERTIES) as any, asyncHandler(ctrl.getPropertyById as any));
+router.put('/properties/:id', requirePermission(AdminPermission.EDIT_PROPERTY) as any, validateBody(UpdatePropertyDto), asyncHandler(ctrl.updateProperty as any));
 router.patch('/properties/:id/approve', requirePermission(AdminPermission.APPROVE_PROPERTY) as any, asyncHandler(ctrl.approveProperty as any));
 router.patch('/properties/:id/reject', requirePermission(AdminPermission.REJECT_PROPERTY) as any, validateBody(RejectPropertyDto), asyncHandler(ctrl.rejectProperty as any));
 router.patch('/properties/:id/suspend', requirePermission(AdminPermission.SUSPEND_PROPERTY) as any, validateBody(RejectPropertyDto), asyncHandler(ctrl.suspendProperty as any));
