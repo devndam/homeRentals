@@ -114,6 +114,12 @@ export enum LegalDocumentStatus {
   ACKNOWLEDGED = 'acknowledged',
 }
 
+export enum BlogPostStatus {
+  DRAFT = 'draft',
+  PUBLISHED = 'published',
+  ARCHIVED = 'archived',
+}
+
 export enum NotificationType {
   BOOKING = 'booking',
   INVOICE = 'invoice',
@@ -177,6 +183,9 @@ export enum AdminPermission {
 
   // System Settings
   MANAGE_SETTINGS = 'manage_settings',
+
+  // Blog
+  MANAGE_BLOG = 'manage_blog',
 }
 
 export const ALL_ADMIN_PERMISSIONS = Object.values(AdminPermission);

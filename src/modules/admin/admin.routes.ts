@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { AdminController } from './admin.controller';
 import { authenticate, requirePermission } from '../../middleware/auth.middleware';
-import { validateBody } from '../../middleware/validate';
+import { validateBody, validateQuery } from '../../middleware/validate';
 import { asyncHandler } from '../../utils/async-handler';
 import { AdminPermission } from '../../types';
 import { CreateAdminDto, UpdateAdminPermissionsDto, UpdateAdminRoleDto, UpdateUserDto, RejectPropertyDto } from './admin.dto';
@@ -15,6 +15,8 @@ import { LegalDocumentController } from '../legal-documents/legal-document.contr
 import { uploadMedia, processUpload } from '../../middleware/upload';
 import { SystemSettingsController } from '../settings/system-settings.controller';
 import { UpdateSystemSettingsDto } from '../settings/system-settings.dto';
+import { BlogController } from '../blog/blog.controller';
+import { CreateBlogPostDto, UpdateBlogPostDto, CreateBlogCategoryDto, UpdateBlogCategoryDto, BlogPostFilterDto } from '../blog/blog.dto';
 
 const router = Router();
 const ctrl = new AdminController();
@@ -116,5 +118,23 @@ const settingsCtrl = new SystemSettingsController();
 
 router.get('/settings', requirePermission(AdminPermission.MANAGE_SETTINGS) as any, asyncHandler(settingsCtrl.getSettings as any));
 router.put('/settings', requirePermission(AdminPermission.MANAGE_SETTINGS) as any, validateBody(UpdateSystemSettingsDto), asyncHandler(settingsCtrl.updateSettings as any));
+
+// ─── Blog Management ──────────────────────
+const blogCtrl = new BlogController();
+
+router.get('/blog', requirePermission(AdminPermission.MANAGE_BLOG) as any, validateQuery(BlogPostFilterDto), asyncHandler(blogCtrl.listAll as any));
+router.get('/blog/posts/:id', requirePermission(AdminPermission.MANAGE_BLOG) as any, asyncHandler(blogCtrl.getById as any));
+router.post('/blog/posts', requirePermission(AdminPermission.MANAGE_BLOG) as any, validateBody(CreateBlogPostDto), asyncHandler(blogCtrl.create as any));
+router.put('/blog/posts/:id', requirePermission(AdminPermission.MANAGE_BLOG) as any, validateBody(UpdateBlogPostDto), asyncHandler(blogCtrl.update as any));
+router.post('/blog/posts/:id/featured-image', requirePermission(AdminPermission.MANAGE_BLOG) as any, uploadMedia.single('image'), processUpload as any, asyncHandler(blogCtrl.uploadFeaturedImage as any));
+router.delete('/blog/posts/:id', requirePermission(AdminPermission.MANAGE_BLOG) as any, asyncHandler(blogCtrl.deletePost as any));
+
+router.get('/blog/categories', requirePermission(AdminPermission.MANAGE_BLOG) as any, asyncHandler(blogCtrl.listCategories as any));
+router.post('/blog/categories', requirePermission(AdminPermission.MANAGE_BLOG) as any, validateBody(CreateBlogCategoryDto), asyncHandler(blogCtrl.createCategory as any));
+router.put('/blog/categories/:id', requirePermission(AdminPermission.MANAGE_BLOG) as any, validateBody(UpdateBlogCategoryDto), asyncHandler(blogCtrl.updateCategory as any));
+router.delete('/blog/categories/:id', requirePermission(AdminPermission.MANAGE_BLOG) as any, asyncHandler(blogCtrl.deleteCategory as any));
+
+router.get('/blog/tags', requirePermission(AdminPermission.MANAGE_BLOG) as any, asyncHandler(blogCtrl.listTags as any));
+router.delete('/blog/tags/:id', requirePermission(AdminPermission.MANAGE_BLOG) as any, asyncHandler(blogCtrl.deleteTag as any));
 
 export default router;
