@@ -32,6 +32,16 @@ export class LoginDto {
   @IsString()
   @IsNotEmpty()
   password!: string;
+
+  @IsString()
+  @IsOptional()
+  twoFactorToken?: string;
+}
+
+export class VerifyTwoFactorDto {
+  @IsString()
+  @IsNotEmpty()
+  token!: string;
 }
 
 export class ForgotPasswordDto {

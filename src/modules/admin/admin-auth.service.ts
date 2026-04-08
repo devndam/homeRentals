@@ -1,5 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import * as OTPAuth from 'otpauth';
+import QRCode from 'qrcode';
 import { AppDataSource } from '../../config/data-source';
 import { Admin } from './admin.entity';
 import { env } from '../../config/env';
@@ -11,10 +13,10 @@ import { getRedis } from '../../config/redis';
 const adminRepo = () => AppDataSource.getRepository(Admin);
 
 export class AdminAuthService {
-  async login(dto: LoginDto) {
+  async login(dto: LoginDto & { twoFactorToken?: string }) {
     const admin = await adminRepo().findOne({
       where: { email: dto.email.toLowerCase().trim() },
-      select: ['id', 'email', 'password', 'firstName', 'lastName', 'phone', 'isActive', 'isSuperAdmin', 'permissions'],
+      select: ['id', 'email', 'password', 'firstName', 'lastName', 'phone', 'isActive', 'isSuperAdmin', 'permissions', 'twoFactorEnabled', 'twoFactorSecret'],
     });
 
     if (!admin) {
@@ -28,6 +30,25 @@ export class AdminAuthService {
     const valid = await bcrypt.compare(dto.password, admin.password);
     if (!valid) {
       throw ApiError.unauthorized('Invalid email or password');
+    }
+
+    // If 2FA is enabled, require token
+    if (admin.twoFactorEnabled) {
+      if (!dto.twoFactorToken) {
+        return { requiresTwoFactor: true };
+      }
+
+      const totp = new OTPAuth.TOTP({
+        secret: OTPAuth.Secret.fromBase32(admin.twoFactorSecret!),
+        algorithm: 'SHA1',
+        digits: 6,
+        period: 30,
+      });
+
+      const delta = totp.validate({ token: dto.twoFactorToken, window: 1 });
+      if (delta === null) {
+        throw ApiError.unauthorized('Invalid two-factor authentication code');
+      }
     }
 
     const tokens = this.generateTokens(admin);
@@ -88,6 +109,121 @@ export class AdminAuthService {
       }
     }
     return { message: 'Logged out successfully' };
+  }
+
+  async changePassword(adminId: string, currentPassword: string, newPassword: string) {
+    const admin = await adminRepo().findOne({
+      where: { id: adminId },
+      select: ['id', 'password'],
+    });
+
+    if (!admin) throw ApiError.notFound('Admin not found');
+
+    const valid = await bcrypt.compare(currentPassword, admin.password);
+    if (!valid) {
+      throw ApiError.badRequest('Current password is incorrect');
+    }
+
+    admin.password = await bcrypt.hash(newPassword, 12);
+    await adminRepo().save(admin);
+
+    return { message: 'Password changed successfully' };
+  }
+
+  async setupTwoFactor(adminId: string) {
+    const admin = await adminRepo().findOne({
+      where: { id: adminId },
+      select: ['id', 'email', 'firstName', 'lastName', 'twoFactorEnabled'],
+    });
+
+    if (!admin) throw ApiError.notFound('Admin not found');
+
+    if (admin.twoFactorEnabled) {
+      throw ApiError.badRequest('Two-factor authentication is already enabled');
+    }
+
+    const secret = new OTPAuth.Secret({ size: 20 });
+    const totp = new OTPAuth.TOTP({
+      issuer: env.appName,
+      label: admin.email,
+      algorithm: 'SHA1',
+      digits: 6,
+      period: 30,
+      secret,
+    });
+
+    const otpauthUrl = totp.toString();
+    const qrCodeDataUrl = await QRCode.toDataURL(otpauthUrl);
+
+    // Save secret temporarily (not enabled until verified)
+    admin.twoFactorSecret = secret.base32;
+    await adminRepo().save(admin);
+
+    return {
+      secret: secret.base32,
+      qrCode: qrCodeDataUrl,
+    };
+  }
+
+  async verifyTwoFactor(adminId: string, token: string) {
+    const admin = await adminRepo().findOne({
+      where: { id: adminId },
+      select: ['id', 'twoFactorSecret', 'twoFactorEnabled'],
+    });
+
+    if (!admin) throw ApiError.notFound('Admin not found');
+
+    if (!admin.twoFactorSecret) {
+      throw ApiError.badRequest('Two-factor setup has not been initiated');
+    }
+
+    const totp = new OTPAuth.TOTP({
+      secret: OTPAuth.Secret.fromBase32(admin.twoFactorSecret),
+      algorithm: 'SHA1',
+      digits: 6,
+      period: 30,
+    });
+
+    const delta = totp.validate({ token, window: 1 });
+    if (delta === null) {
+      throw ApiError.badRequest('Invalid verification code');
+    }
+
+    admin.twoFactorEnabled = true;
+    await adminRepo().save(admin);
+
+    return { message: 'Two-factor authentication enabled successfully' };
+  }
+
+  async disableTwoFactor(adminId: string, token: string) {
+    const admin = await adminRepo().findOne({
+      where: { id: adminId },
+      select: ['id', 'twoFactorSecret', 'twoFactorEnabled'],
+    });
+
+    if (!admin) throw ApiError.notFound('Admin not found');
+
+    if (!admin.twoFactorEnabled) {
+      throw ApiError.badRequest('Two-factor authentication is not enabled');
+    }
+
+    const totp = new OTPAuth.TOTP({
+      secret: OTPAuth.Secret.fromBase32(admin.twoFactorSecret!),
+      algorithm: 'SHA1',
+      digits: 6,
+      period: 30,
+    });
+
+    const delta = totp.validate({ token, window: 1 });
+    if (delta === null) {
+      throw ApiError.badRequest('Invalid verification code');
+    }
+
+    admin.twoFactorEnabled = false;
+    admin.twoFactorSecret = undefined;
+    await adminRepo().save(admin);
+
+    return { message: 'Two-factor authentication disabled successfully' };
   }
 
   private generateTokens(admin: Admin) {

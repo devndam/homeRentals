@@ -40,6 +40,21 @@ export class AuthController {
     return sendSuccess(res, result);
   }
 
+  async setupTwoFactor(req: AuthenticatedRequest, res: Response) {
+    const result = await authService.setupTwoFactor(req.user.sub);
+    return sendSuccess(res, result, 'Scan the QR code with your authenticator app');
+  }
+
+  async verifyTwoFactor(req: AuthenticatedRequest, res: Response) {
+    const result = await authService.verifyTwoFactor(req.user.sub, req.body.token);
+    return sendSuccess(res, result, result.message);
+  }
+
+  async disableTwoFactor(req: AuthenticatedRequest, res: Response) {
+    const result = await authService.disableTwoFactor(req.user.sub, req.body.token);
+    return sendSuccess(res, result, result.message);
+  }
+
   async logout(req: Request, res: Response) {
     const result = await authService.logout(req.body.refreshToken);
     return sendSuccess(res, result);

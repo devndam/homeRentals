@@ -1,6 +1,8 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import * as OTPAuth from 'otpauth';
+import QRCode from 'qrcode';
 import { AppDataSource } from '../../config/data-source';
 import { User } from '../users/user.entity';
 import { env } from '../../config/env';
@@ -70,7 +72,7 @@ export class AuthService {
   async login(dto: LoginDto) {
     const user = await userRepo().findOne({
       where: { email: dto.email.toLowerCase().trim() },
-      select: ['id', 'email', 'password', 'isPropertyOwner', 'firstName', 'lastName', 'phone', 'isActive', 'emailVerified'],
+      select: ['id', 'email', 'password', 'isPropertyOwner', 'firstName', 'lastName', 'phone', 'isActive', 'emailVerified', 'twoFactorEnabled', 'twoFactorSecret'],
     });
 
     if (!user) {
@@ -84,6 +86,25 @@ export class AuthService {
     const valid = await bcrypt.compare(dto.password, user.password);
     if (!valid) {
       throw ApiError.unauthorized('Invalid email or password');
+    }
+
+    // If 2FA is enabled, require token
+    if (user.twoFactorEnabled) {
+      if (!dto.twoFactorToken) {
+        return { requiresTwoFactor: true };
+      }
+
+      const totp = new OTPAuth.TOTP({
+        secret: OTPAuth.Secret.fromBase32(user.twoFactorSecret!),
+        algorithm: 'SHA1',
+        digits: 6,
+        period: 30,
+      });
+
+      const delta = totp.validate({ token: dto.twoFactorToken, window: 1 });
+      if (delta === null) {
+        throw ApiError.unauthorized('Invalid two-factor authentication code');
+      }
     }
 
     const tokens = this.generateTokens(user);
@@ -250,6 +271,98 @@ export class AuthService {
     await userRepo().save(user);
 
     return { message: 'Password changed successfully' };
+  }
+
+  async setupTwoFactor(userId: string) {
+    const user = await userRepo().findOne({
+      where: { id: userId },
+      select: ['id', 'email', 'twoFactorEnabled'],
+    });
+
+    if (!user) throw ApiError.notFound('User not found');
+
+    if (user.twoFactorEnabled) {
+      throw ApiError.badRequest('Two-factor authentication is already enabled');
+    }
+
+    const secret = new OTPAuth.Secret({ size: 20 });
+    const totp = new OTPAuth.TOTP({
+      issuer: env.appName,
+      label: user.email,
+      algorithm: 'SHA1',
+      digits: 6,
+      period: 30,
+      secret,
+    });
+
+    const otpauthUrl = totp.toString();
+    const qrCodeDataUrl = await QRCode.toDataURL(otpauthUrl);
+
+    // Save secret temporarily (not enabled until verified)
+    await userRepo().update(user.id, { twoFactorSecret: secret.base32 });
+
+    return {
+      secret: secret.base32,
+      qrCode: qrCodeDataUrl,
+    };
+  }
+
+  async verifyTwoFactor(userId: string, token: string) {
+    const user = await userRepo().findOne({
+      where: { id: userId },
+      select: ['id', 'twoFactorSecret', 'twoFactorEnabled'],
+    });
+
+    if (!user) throw ApiError.notFound('User not found');
+
+    if (!user.twoFactorSecret) {
+      throw ApiError.badRequest('Two-factor setup has not been initiated');
+    }
+
+    const totp = new OTPAuth.TOTP({
+      secret: OTPAuth.Secret.fromBase32(user.twoFactorSecret),
+      algorithm: 'SHA1',
+      digits: 6,
+      period: 30,
+    });
+
+    const delta = totp.validate({ token, window: 1 });
+    if (delta === null) {
+      throw ApiError.badRequest('Invalid verification code');
+    }
+
+    await userRepo().update(user.id, { twoFactorEnabled: true });
+
+    return { message: 'Two-factor authentication enabled successfully' };
+  }
+
+  async disableTwoFactor(userId: string, token: string) {
+    const user = await userRepo().findOne({
+      where: { id: userId },
+      select: ['id', 'twoFactorSecret', 'twoFactorEnabled'],
+    });
+
+    if (!user) throw ApiError.notFound('User not found');
+
+    if (!user.twoFactorEnabled) {
+      throw ApiError.badRequest('Two-factor authentication is not enabled');
+    }
+
+    const totp = new OTPAuth.TOTP({
+      secret: OTPAuth.Secret.fromBase32(user.twoFactorSecret!),
+      algorithm: 'SHA1',
+      digits: 6,
+      period: 30,
+    });
+
+    const delta = totp.validate({ token, window: 1 });
+    if (delta === null) {
+      throw ApiError.badRequest('Invalid verification code');
+    }
+
+    await userRepo().update(user.id, { twoFactorEnabled: false, twoFactorSecret: undefined });
+
+    return { message: 'Two-factor authentication disabled successfully' };
   }
 
   async logout(refreshToken: string) {

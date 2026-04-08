@@ -38,6 +38,12 @@ export class Admin {
   @Column({ default: true })
   isActive!: boolean;
 
+  @Column({ nullable: true, select: false })
+  twoFactorSecret?: string;
+
+  @Column({ default: false })
+  twoFactorEnabled!: boolean;
+
   @Column({ nullable: true })
   passwordResetToken?: string;
 

@@ -28,6 +28,22 @@ export class CreateAdminDto {
   isSuperAdmin?: boolean;
 }
 
+export class ChangeAdminPasswordDto {
+  @IsString()
+  @IsNotEmpty()
+  currentPassword!: string;
+
+  @IsString()
+  @MinLength(8)
+  newPassword!: string;
+}
+
+export class VerifyTwoFactorDto {
+  @IsString()
+  @IsNotEmpty()
+  token!: string;
+}
+
 export class UpdateAdminPermissionsDto {
   @IsArray()
   @IsEnum(AdminPermission, { each: true, message: 'Each permission must be a valid AdminPermission' })

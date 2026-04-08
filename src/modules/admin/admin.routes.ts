@@ -4,7 +4,7 @@ import { authenticate, requirePermission } from '../../middleware/auth.middlewar
 import { validateBody, validateQuery } from '../../middleware/validate';
 import { asyncHandler } from '../../utils/async-handler';
 import { AdminPermission } from '../../types';
-import { CreateAdminDto, UpdateAdminPermissionsDto, UpdateAdminRoleDto, UpdateUserDto, RejectPropertyDto } from './admin.dto';
+import { CreateAdminDto, UpdateAdminPermissionsDto, UpdateAdminRoleDto, UpdateUserDto, RejectPropertyDto, ChangeAdminPasswordDto, VerifyTwoFactorDto } from './admin.dto';
 import { UpdatePropertyDto } from '../properties/property.dto';
 import { LoginDto, RefreshTokenDto } from '../auth/auth.dto';
 import { RejectKycDto } from '../kyc/kyc.dto';
@@ -34,6 +34,13 @@ router.post('/logout', asyncHandler(ctrl.logout as any));
 
 // All remaining admin routes require authentication (permission checked per-route)
 router.use(authenticate as any);
+
+// ─── Account Security (any authenticated admin) ───
+router.get('/me', asyncHandler(ctrl.getMyProfile as any));
+router.put('/change-password', validateBody(ChangeAdminPasswordDto), asyncHandler(ctrl.changePassword as any));
+router.post('/2fa/setup', asyncHandler(ctrl.setupTwoFactor as any));
+router.post('/2fa/verify', validateBody(VerifyTwoFactorDto), asyncHandler(ctrl.verifyTwoFactor as any));
+router.post('/2fa/disable', validateBody(VerifyTwoFactorDto), asyncHandler(ctrl.disableTwoFactor as any));
 
 // ─── Admin Member Management (requires MANAGE_ADMINS) ───
 router.get('/members', requirePermission(AdminPermission.MANAGE_ADMINS) as any, asyncHandler(ctrl.getAdminMembers as any));

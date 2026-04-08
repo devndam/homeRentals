@@ -28,6 +28,32 @@ export class AdminController {
     return sendSuccess(res, result);
   }
 
+  // ─── Account Security ─────────────────────
+  async changePassword(req: AuthenticatedRequest, res: Response) {
+    const result = await adminAuthService.changePassword(req.user.sub, req.body.currentPassword, req.body.newPassword);
+    return sendSuccess(res, result, result.message);
+  }
+
+  async setupTwoFactor(req: AuthenticatedRequest, res: Response) {
+    const result = await adminAuthService.setupTwoFactor(req.user.sub);
+    return sendSuccess(res, result, 'Scan the QR code with your authenticator app');
+  }
+
+  async verifyTwoFactor(req: AuthenticatedRequest, res: Response) {
+    const result = await adminAuthService.verifyTwoFactor(req.user.sub, req.body.token);
+    return sendSuccess(res, result, result.message);
+  }
+
+  async disableTwoFactor(req: AuthenticatedRequest, res: Response) {
+    const result = await adminAuthService.disableTwoFactor(req.user.sub, req.body.token);
+    return sendSuccess(res, result, result.message);
+  }
+
+  async getMyProfile(req: AuthenticatedRequest, res: Response) {
+    const admin = await adminService.getAdminById(req.user.sub);
+    return sendSuccess(res, admin);
+  }
+
   // ─── Admin Member Management ──────────────
   async createAdmin(req: AuthenticatedRequest, res: Response) {
     const admin = await adminService.createAdmin(req.user.sub, req.body);
