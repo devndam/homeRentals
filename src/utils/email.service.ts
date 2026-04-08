@@ -1,6 +1,8 @@
 import nodemailer from 'nodemailer';
 import { env } from '../config/env';
 
+const appName = env.appName;
+
 const transporter = nodemailer.createTransport({
   host: env.smtp.host,
   port: env.smtp.port,
@@ -15,7 +17,7 @@ export class EmailService {
     await transporter.sendMail({
       from: env.smtp.from,
       to: email,
-      subject: 'Verify your email - Rentals NG',
+      subject: `Verify your email - ${appName}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Email Verification</h2>
@@ -27,7 +29,7 @@ export class EmailService {
           <p>This code expires in <strong>10 minutes</strong>.</p>
           <p>If you did not create an account, please ignore this email.</p>
           <br/>
-          <p>- Rentals NG Team</p>
+          <p>- ${appName} Team</p>
         </div>
       `,
     });
@@ -37,7 +39,7 @@ export class EmailService {
     await transporter.sendMail({
       from: env.smtp.from,
       to: email,
-      subject: 'Your password has been reset - Rentals NG',
+      subject: `Your password has been reset - ${appName}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Password Reset by Admin</h2>
@@ -48,7 +50,7 @@ export class EmailService {
           </div>
           <p>Please log in and change your password immediately for security.</p>
           <br/>
-          <p>- Rentals NG Team</p>
+          <p>- ${appName} Team</p>
         </div>
       `,
     });
@@ -60,7 +62,7 @@ export class EmailService {
     await transporter.sendMail({
       from: env.smtp.from,
       to: email,
-      subject: 'Reset your password - Rentals NG',
+      subject: `Reset your password - ${appName}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Password Reset</h2>
@@ -75,7 +77,7 @@ export class EmailService {
           <p>This link expires in <strong>30 minutes</strong>.</p>
           <p>If you did not request this, please ignore this email.</p>
           <br/>
-          <p>- Rentals NG Team</p>
+          <p>- ${appName} Team</p>
         </div>
       `,
     });
@@ -92,7 +94,7 @@ export class EmailService {
     await transporter.sendMail({
       from: env.smtp.from,
       to: email,
-      subject: `Rent due soon for ${propertyTitle} - Rentals NG`,
+      subject: `Rent due soon for ${propertyTitle} - ${appName}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Rent Payment Reminder</h2>
@@ -104,7 +106,7 @@ export class EmailService {
           </div>
           <p>Please log in to your dashboard to make the payment before the due date.</p>
           <br/>
-          <p>- Rentals NG Team</p>
+          <p>- ${appName} Team</p>
         </div>
       `,
     });
@@ -121,7 +123,7 @@ export class EmailService {
     await transporter.sendMail({
       from: env.smtp.from,
       to: email,
-      subject: `OVERDUE: Rent payment for ${propertyTitle} - Rentals NG`,
+      subject: `OVERDUE: Rent payment for ${propertyTitle} - ${appName}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #dc2626;">Overdue Rent Payment</h2>
@@ -133,7 +135,7 @@ export class EmailService {
           </div>
           <p>Please log in to your dashboard and complete the payment as soon as possible to avoid further action.</p>
           <br/>
-          <p>- Rentals NG Team</p>
+          <p>- ${appName} Team</p>
         </div>
       `,
     });
@@ -143,15 +145,15 @@ export class EmailService {
     await transporter.sendMail({
       from: env.smtp.from,
       to: email,
-      subject: `You've been invited to join ${orgName} - Rentals NG`,
+      subject: `You've been invited to join ${orgName} - ${appName}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Organisation Invite</h2>
           <p>Hi,</p>
-          <p>You have been invited to join <strong>${orgName}</strong> on Rentals NG as a staff member.</p>
+          <p>You have been invited to join <strong>${orgName}</strong> on ${appName} as a staff member.</p>
           <p>Log in to your dashboard to accept or decline this invitation.</p>
           <br/>
-          <p>- Rentals NG Team</p>
+          <p>- ${appName} Team</p>
         </div>
       `,
     });
@@ -173,7 +175,7 @@ export class EmailService {
     await transporter.sendMail({
       from: env.smtp.from,
       to: email,
-      subject: `${subject} - Rentals NG`,
+      subject: `${subject} - ${appName}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>${isOverdue ? 'Overdue Rent Notification' : 'Upcoming Rent Notification'}</h2>
@@ -184,7 +186,7 @@ export class EmailService {
           }
           <p>You can check the status on your landlord dashboard.</p>
           <br/>
-          <p>- Rentals NG Team</p>
+          <p>- ${appName} Team</p>
         </div>
       `,
     });
