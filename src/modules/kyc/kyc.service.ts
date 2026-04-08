@@ -22,14 +22,10 @@ export class KycService {
       userId,
       documentType: dto.documentType,
       documentUrl: file.storageUrl || `/uploads/${file.filename}`,
-      status: KycStatus.APPROVED, // Auto-approve for testing
-      reviewedAt: new Date(),
+      status: KycStatus.PENDING,
     });
 
     await kycRepo().save(doc);
-
-    // Mark user as identity verified
-    await userRepo().update(userId, { identityVerified: true });
 
     return doc;
   }
