@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { ServiceLocationService } from './service-location.service';
 import { sendSuccess, sendCreated, sendPaginated, sendNoContent } from '../../utils/response';
 import { AuthenticatedRequest } from '../../types';
-import { nigerianStates, countries } from './geo-data';
+import { statesByCountry, countries } from './geo-data';
 
 const service = new ServiceLocationService();
 
@@ -38,7 +38,12 @@ export class ServiceLocationController {
     return sendSuccess(res, locations);
   }
 
-  async getGeoData(_req: Request, res: Response) {
-    return sendSuccess(res, { states: nigerianStates, countries });
+  async getGeoData(req: Request, res: Response) {
+    const country = req.query.country as string | undefined;
+    if (country) {
+      const states = statesByCountry[country] || [];
+      return sendSuccess(res, { states });
+    }
+    return sendSuccess(res, { countries, statesByCountry });
   }
 }
