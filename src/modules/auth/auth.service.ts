@@ -135,8 +135,7 @@ export class AuthService {
   async forgotPassword(email: string) {
     const user = await userRepo().findOne({ where: { email: email.toLowerCase().trim() } });
     if (!user) {
-      // Don't reveal whether email exists
-      return { message: 'If the email exists, a reset link has been sent' };
+      throw ApiError.notFound('No account found with this email address');
     }
 
     const resetToken = crypto.randomBytes(32).toString('hex');

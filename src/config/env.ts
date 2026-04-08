@@ -82,6 +82,10 @@ export const env = {
     maxFilesPerListing: parseInt(optional('MAX_FILES_PER_LISTING', '15'), 10),
   },
 
+  slack: {
+    webhookUrl: optional('SLACK_WEBHOOK_URL', ''),
+  },
+
   get isDev(): boolean {
     return this.nodeEnv === 'development';
   },
