@@ -128,6 +128,28 @@ export class EmailService {
     });
   }
 
+  async sendAdminWelcome(email: string, firstName: string, password: string): Promise<void> {
+    const loginUrl = `${frontendUrl}/controls/sign-in`;
+    await transporter.sendMail({
+      from: env.smtp.from,
+      to: email,
+      subject: `You've been added as an admin - ${appName}`,
+      html: layout(`
+        ${heading('Welcome to the Admin Team')}
+        ${greeting(firstName)}
+        ${paragraph(`You have been added as an administrator on <strong>${appName}</strong>. Use the credentials below to access the admin dashboard.`)}
+        ${divider()}
+        ${paragraph(`<strong>Login URL:</strong> <a href="${loginUrl}" style="color: #1e3a5f;">${loginUrl}</a>`)}
+        ${paragraph(`<strong>Email:</strong> ${email}`)}
+        ${paragraph('<strong>Temporary Password:</strong>')}
+        ${codeBlock(password, '4px', '24px')}
+        ${button('Go to Admin Dashboard', loginUrl)}
+        ${divider()}
+        ${paragraph('<span style="font-size: 13px; color: #6b7280;"><strong>Important:</strong> Please change your password immediately after your first login for security purposes.</span>')}
+      `),
+    });
+  }
+
   async sendAdminPasswordReset(email: string, firstName: string, newPassword: string): Promise<void> {
     await transporter.sendMail({
       from: env.smtp.from,

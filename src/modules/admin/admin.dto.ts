@@ -19,10 +19,6 @@ export class CreateAdminDto {
   @Matches(/^\+?[0-9]{10,15}$/, { message: 'Phone must be a valid phone number' })
   phone!: string;
 
-  @IsString()
-  @MinLength(8)
-  password!: string;
-
   @IsArray()
   @IsEnum(AdminPermission, { each: true, message: 'Each permission must be a valid AdminPermission' })
   permissions!: AdminPermission[];

@@ -46,7 +46,8 @@ export class AdminService {
       );
     }
 
-    const hashedPassword = await bcrypt.hash(dto.password, 12);
+    const plainPassword = crypto.randomBytes(8).toString('base64url'); // ~11 chars
+    const hashedPassword = await bcrypt.hash(plainPassword, 12);
 
     const admin = adminRepo().create({
       firstName: dto.firstName,
@@ -60,6 +61,8 @@ export class AdminService {
     });
 
     await adminRepo().save(admin);
+
+    await emailService.sendAdminWelcome(admin.email, admin.firstName, plainPassword);
 
     return this.sanitizeAdmin(admin);
   }
