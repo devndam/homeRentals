@@ -11,7 +11,7 @@ const options: DataSourceOptions = {
   synchronize: env.isDev, // auto-sync in dev only; use migrations in prod
   logging: env.isDev ? ['error', 'warn'] : ['error'],
   entities: [path.join(__dirname, '..', 'modules', '**', '*.entity.{ts,js}')],
-  migrations: [path.join(__dirname, '..', 'database', 'migrations', '*.{ts,js}')],
+  migrations: [path.join(__dirname, '..', 'migrations', '*.{ts,js}')],
   subscribers: [UrlTransformSubscriber],
 };
 
